@@ -1,2 +1,1 @@
-# LibreVS
-Open-Source ESG reporting tool for European SME's
+2a155d2 (Initial LibreVS Next.js scaffold)
