@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    container_name: librevs-db
+    restart: always
+    environment:
+      POSTGRES_USER: librevs
+      POSTGRES_PASSWORD: librevs
+      POSTGRES_DB: librevs
+    ports:
+      - "5432:5432"
+    volumes:
+      - librevs_pgdata:/var/lib/postgresql/data
+
+volumes:
+  librevs_pgdata:
