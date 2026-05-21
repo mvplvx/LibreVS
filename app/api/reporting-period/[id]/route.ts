@@ -1,32 +1,30 @@
 import { prisma } from "@/lib/db/prisma";
+import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
+import { apiError, apiSuccess } from "@/lib/api/response";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const reportingPeriodId = params.id;
-
-  const dataPoints = await prisma.sustainabilityDataPoint.findMany({
-    where: { reportingPeriodId },
-  });
-
-  const summary = dataPoints.reduce((acc: any, dp) => {
-    if (!acc[dp.category]) {
-      acc[dp.category] = [];
+  return withApiHandler(async () => {
+    const id = await resolveRouteId(params);
+    if (!id) {
+      return apiError("Reporting period id is required", 400);
     }
 
-    acc[dp.category].push({
-      key: dp.key,
-      value: dp.value,
-      unit: dp.unit,
+    const reportingPeriod = await prisma.reportingPeriod.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { sustainabilityDataPoints: true },
+        },
+      },
     });
 
-    return acc;
-  }, {});
+    if (!reportingPeriod) {
+      return apiError("Reporting period not found", 404);
+    }
 
-  return Response.json({
-    reportingPeriodId,
-    totalDataPoints: dataPoints.length,
-    summary,
+    return apiSuccess(reportingPeriod);
   });
 }

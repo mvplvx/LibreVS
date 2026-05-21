@@ -45,4 +45,6 @@ model SustainabilityDataPoint {
   reportingPeriod   ReportingPeriod @relation(fields: [reportingPeriodId], references: [id])
 
   createdAt DateTime @default(now())
+
+  @@unique([reportingPeriodId, category, key])
 }

@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/db/prisma";
+import { withApiHandler } from "@/lib/api/handler";
+import { apiSuccess } from "@/lib/api/response";
 
 export async function GET() {
-  const companies = await prisma.company.findMany();
-
-  return Response.json({
-    success: true,
-    data: companies,
+  return withApiHandler(async () => {
+    const companies = await prisma.company.findMany();
+    return apiSuccess(companies);
   });
 }
