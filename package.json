@@ -9,7 +9,8 @@
     "lint": "eslint",
     "db:seed": "node prisma/seed.js",
     "db:migrate-vsme": "npx tsx scripts/migrate-vsme-v1-to-v2.ts",
-    "db:migrate-vsme:dry-run": "npx tsx scripts/migrate-vsme-v1-to-v2.ts --dry-run"
+    "db:migrate-vsme:dry-run": "npx tsx scripts/migrate-vsme-v1-to-v2.ts --dry-run",
+    "vsme:contract-test": "npx tsx scripts/vsme-contract-test.ts"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

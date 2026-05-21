@@ -1,3 +1,4 @@
+export { VSME_CONTRACT, VSME_CONTRACT_REGISTRY } from "./CONTRACT";
 export { VSME_SCHEMA } from "./vsme.schema";
 export { VSME_SCHEMA_VERSION } from "./schemaVersion";
 export {

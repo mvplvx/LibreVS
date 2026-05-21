@@ -6,6 +6,7 @@ import { apiError, apiSuccess, formatZodError } from "@/lib/api/response";
 import { validateFieldId } from "@/lib/vsme/validateField";
 import { validateFieldValue } from "@/lib/vsme/validateFieldValue";
 import { getRegistryEntry } from "@/lib/vsme/vsme.fieldRegistry";
+import { guardActiveFieldIds } from "@/lib/vsme/dev/contractGuard";
 import { filterLegacyDataPoints } from "@/lib/vsme/runtime/dataTruthMode";
 import { bulkDataPointSchema } from "@/lib/validators/datapoint";
 
@@ -42,10 +43,14 @@ export async function GET(req: Request) {
     );
     const v2Ids = new Set(v2Rows.map((r) => r.fieldId));
 
+    const activeRows = dataPoints.filter((dp) => v2Ids.has(dp.fieldId));
+    guardActiveFieldIds(
+      activeRows.map((dp) => dp.fieldId),
+      "GET /api/data-point"
+    );
+
     return apiSuccess(
-      dataPoints
-        .filter((dp) => v2Ids.has(dp.fieldId))
-        .map((dp) => {
+      activeRows.map((dp) => {
           const entry = getRegistryEntry(dp.fieldId)!;
           return {
             id: dp.id,

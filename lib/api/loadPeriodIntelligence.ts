@@ -6,6 +6,7 @@ import {
   filterLegacyDataPoints,
 } from "@/lib/vsme/runtime/dataTruthMode";
 import { VSME_SCHEMA_VERSION } from "@/lib/vsme/schemaVersion";
+import { guardRequiredToFillAlignment } from "@/lib/vsme/dev/contractGuard";
 
 export async function loadPeriodIntelligence(
   reportingPeriodId: string,
@@ -52,7 +53,7 @@ export async function loadPeriodIntelligence(
     { exportGenerated }
   );
 
-  return {
+  const result = {
     reportingPeriodId: period.id,
     year: period.year,
     status: period.status,
@@ -63,4 +64,8 @@ export async function loadPeriodIntelligence(
     vsme,
     totalDataPoints: v2Only.length,
   };
+
+  guardRequiredToFillAlignment(vsme, employeeCount, materialityByFieldId);
+
+  return result;
 }

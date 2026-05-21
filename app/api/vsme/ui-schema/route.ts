@@ -5,6 +5,7 @@ import { runRegistryBootCheck } from "@/lib/vsme/registryBootCheck";
 import { loadMaterialityForPeriod } from "@/lib/vsme/loadMateriality";
 import { loadReportedFieldIds } from "@/lib/vsme/loadReportedFieldIds";
 import { isModuleCInReportingScope } from "@/lib/vsme/moduleScope";
+import { guardUiSchemaBuild } from "@/lib/vsme/dev/contractGuard";
 import { buildVsmeUiSchema } from "@/lib/vsme/vsme.uiSchema";
 import { VSME_SCHEMA_VERSION } from "@/lib/vsme/schemaVersion";
 import type { VsmeUiSchema } from "@/lib/vsme/vsme.uiSchema";
@@ -73,6 +74,7 @@ export async function GET(req: Request) {
           `[LibreVS] ui-schema field count ${fieldCount} !== registry ${VSME_FIELD_COUNT}`
         );
       }
+      guardUiSchemaBuild(schema);
       return apiSuccess(schema);
     } catch (error) {
       console.error("[LibreVS] ui-schema build failed:", error);
