@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id                 String   @id @default(cuid())
+  name               String
+  registrationNumber String?
+  country            String?
+  industry           String?
+  createdAt          DateTime @default(now())
+
+  reportingPeriods ReportingPeriod[]
+}
+
+model ReportingPeriod {
+  id        String    @id @default(cuid())
+  year      Int
+  startDate DateTime?
+  endDate   DateTime?
+  status    String    @default("draft")
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  sustainabilityDataPoints SustainabilityDataPoint[]
+
+  createdAt DateTime @default(now())
+}
+
+model SustainabilityDataPoint {
+  id String @id @default(cuid())
+
+  category String // e.g. "energy", "emissions", "waste"
+  key      String // specific metric name
+  value    String // keep flexible for MVP (no strict typing yet)
+  unit     String?
+
+  reportingPeriodId String
+  reportingPeriod   ReportingPeriod @relation(fields: [reportingPeriodId], references: [id])
+
+  createdAt DateTime @default(now())
+}
