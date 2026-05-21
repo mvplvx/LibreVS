@@ -1,10 +1,10 @@
 import { getUser } from "@/lib/auth";
 import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
 import { loadPeriodIntelligence } from "@/lib/api/loadPeriodIntelligence";
-import { completenessApiFields } from "@/lib/api/vsmeCompletenessResponse";
 import { apiError, apiSuccess } from "@/lib/api/response";
+import { listExportSnapshotsForPeriod } from "@/lib/vsme/exportSnapshotVersioning";
 
-/** Dashboard metrics — STRICT_V2 only (legacy DB rows excluded). */
+/** Version history of immutable export snapshots for a reporting period. */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> | { id: string } }
@@ -22,24 +22,14 @@ export async function GET(
       return apiError("Reporting period not found", 404);
     }
 
-    const { vsme } = data;
+    const history = await listExportSnapshotsForPeriod(reportingPeriodId);
 
     return apiSuccess({
-      reportingPeriodId: data.reportingPeriodId,
+      reportingPeriodId,
+      companyId: data.companyId,
       year: data.year,
       status: data.status,
-      companyId: data.companyId,
-      schemaVersion: data.schemaVersion,
-      employeeCount: data.employeeCount,
-      totalDataPoints: data.totalDataPoints,
-      totalCoveragePercentage: vsme.totalCoveragePercentage,
-      fieldsReported: vsme.fieldsReported,
-      totalFields: vsme.totalFields,
-      ...completenessApiFields(vsme),
-      reportingState: data.reportingState,
-      applicableSections: vsme.applicableSections,
-      bySection: vsme.bySection,
-      values: vsme.values,
+      ...history,
     });
   });
 }

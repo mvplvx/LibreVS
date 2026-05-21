@@ -1,10 +1,14 @@
 import { getUser } from "@/lib/auth";
 import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
 import { loadPeriodIntelligence } from "@/lib/api/loadPeriodIntelligence";
-import { completenessApiFields } from "@/lib/api/vsmeCompletenessResponse";
 import { apiError, apiSuccess } from "@/lib/api/response";
+import { buildExportPreview } from "@/lib/vsme/buildExportPreview";
+import {
+  buildEfragExportSnapshot,
+  validateEfragExport,
+} from "@/lib/vsme/validateEfragExport";
 
-/** Dashboard metrics — STRICT_V2 only (legacy DB rows excluded). */
+/** EFRAG export integrity check + preview (does not modify export payload). */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> | { id: string } }
@@ -23,23 +27,31 @@ export async function GET(
     }
 
     const { vsme } = data;
+    const snapshot = buildEfragExportSnapshot({
+      employeeCount: data.employeeCount,
+      materialityByFieldId: data.materialityByFieldId,
+      values: vsme.values.map((v) => ({
+        fieldId: v.fieldId,
+        value: v.value,
+      })),
+      requiredFieldIds: vsme.completeness.requiredFieldIds,
+    });
+
+    const validation = validateEfragExport(snapshot);
+    const unitsByFieldId: Record<string, string | null> = {};
+    for (const row of vsme.values) {
+      unitsByFieldId[row.fieldId] = row.unit;
+    }
+    const preview = buildExportPreview(snapshot, validation, unitsByFieldId);
 
     return apiSuccess({
       reportingPeriodId: data.reportingPeriodId,
       year: data.year,
       status: data.status,
-      companyId: data.companyId,
-      schemaVersion: data.schemaVersion,
-      employeeCount: data.employeeCount,
-      totalDataPoints: data.totalDataPoints,
-      totalCoveragePercentage: vsme.totalCoveragePercentage,
-      fieldsReported: vsme.fieldsReported,
-      totalFields: vsme.totalFields,
-      ...completenessApiFields(vsme),
       reportingState: data.reportingState,
-      applicableSections: vsme.applicableSections,
-      bySection: vsme.bySection,
-      values: vsme.values,
+      exportReady: vsme.exportReady,
+      validation,
+      preview,
     });
   });
 }

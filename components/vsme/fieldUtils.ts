@@ -1,19 +1,13 @@
-import type { VsmeMateriality, VsmeUiField, VsmeUiSection } from "./types";
+import type { VsmeMateriality, VsmeUiSection } from "./types";
+import {
+  getFieldMaterialityState,
+  isFieldRequiredToFill,
+} from "./fieldMaterialityState";
+
+export { isFieldRequiredToFill } from "./fieldMaterialityState";
 
 export function workflowLabelText(label: string): string {
   return label.replace(/_/g, " ");
-}
-
-/** requiredToFill = moduleInReportingScope × materiality (material only). */
-export function isFieldRequiredToFill(
-  field: VsmeUiField,
-  materiality?: VsmeMateriality
-): boolean {
-  if (!field.applicability.visible) {
-    return false;
-  }
-  const m = materiality ?? field.applicability.materiality;
-  return field.applicability.moduleInReportingScope && m === "material";
 }
 
 export function isFieldFilled(value: string | undefined): boolean {
@@ -27,14 +21,20 @@ export function sectionFieldList(section: VsmeUiSection) {
 export function sectionProgressFromValues(
   section: VsmeUiSection,
   values: Record<string, { value: string }>,
-  bySection?: Record<string, { reported: number; total: number }>
+  bySection?: Record<string, { reported: number; total: number }>,
+  dbMaterialityByFieldId?: Record<string, VsmeMateriality>
 ): { reported: number; total: number } {
   const apiCounts = bySection?.[section.code];
   if (apiCounts) {
     return apiCounts;
   }
   const fields = sectionFieldList(section).filter((f) =>
-    isFieldRequiredToFill(f)
+    dbMaterialityByFieldId
+      ? isFieldRequiredToFill(
+          f,
+          getFieldMaterialityState(f.fieldId, dbMaterialityByFieldId)
+        )
+      : f.applicability.requiredToFill
   );
   const total = fields.length;
   const reported = fields.filter((f) =>

@@ -26,4 +26,10 @@ export const vsmeKeys = {
 
   materiality: (reportingPeriodId: string) =>
     [...vsmeKeys.all, "materiality", reportingPeriodId] as const,
+
+  exportValidation: (reportingPeriodId: string) =>
+    [...vsmeKeys.all, "export-validation", reportingPeriodId] as const,
+
+  exportSnapshots: (reportingPeriodId: string) =>
+    [...vsmeKeys.all, "export-snapshots", reportingPeriodId] as const,
 };

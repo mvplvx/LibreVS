@@ -46,6 +46,12 @@ export function useUpdateVsmeMateriality() {
       queryClient.invalidateQueries({
         queryKey: vsmeKeys.dashboard(variables.reportingPeriodId),
       });
+      queryClient.invalidateQueries({
+        queryKey: vsmeKeys.exportValidation(variables.reportingPeriodId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: vsmeKeys.exportSnapshots(variables.reportingPeriodId),
+      });
     },
   });
 }

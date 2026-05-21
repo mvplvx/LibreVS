@@ -6,24 +6,37 @@ type VsmeProgressHeaderProps = {
   schema: VsmeUiSchema;
   coverage: VsmeCoverageMetrics | null;
   fieldCount: number;
+  undecidedFieldCount?: number;
+  prominent?: boolean;
+  auditTone?: boolean;
+  showMissingRequiredIndicator?: boolean;
 };
 
 export function VsmeProgressHeader({
   schema,
   coverage,
   fieldCount,
+  undecidedFieldCount = 0,
+  prominent = false,
+  auditTone = false,
+  showMissingRequiredIndicator = false,
 }: VsmeProgressHeaderProps) {
   const completeness = coverage?.completeness;
   const exportBlockingCount = completeness?.exportBlockingFields.length ?? 0;
-  const missingMaterialCount = completeness?.missingMaterialFields.length ?? 0;
   const missingRequiredCount = completeness?.missingRequiredFields.length ?? 0;
 
+  const shellClass = auditTone
+    ? "rounded-lg border border-amber-200 bg-amber-50/80 p-4 shadow-sm ring-1 ring-amber-100"
+    : prominent
+      ? "rounded-lg border border-emerald-200 bg-white p-4 shadow-md ring-1 ring-emerald-100"
+      : "rounded-lg border border-slate-200 bg-white p-4 shadow-sm";
+
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <div className={shellClass}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs uppercase tracking-wide text-slate-500">
-            VSME schema execution
+            {auditTone ? "Completeness audit" : "VSME schema execution"}
           </p>
           <p className="text-sm text-slate-700">
             {schema.standard} {schema.schemaVersion} · {fieldCount} fields ·
@@ -42,9 +55,17 @@ export function VsmeProgressHeader({
       </div>
 
       <p className="mt-2 text-xs text-slate-500">
-        In scope = module obligation · Material = marked material · Required =
-        in scope × material · Export blocks on missing required fields.
+        Flow: decide materiality per field → enter data if material → validate
+        completeness → export. Required = in scope × explicitly material.
       </p>
+
+      {undecidedFieldCount > 0 ? (
+        <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {undecidedFieldCount} field
+          {undecidedFieldCount === 1 ? "" : "s"} still need a reporting decision
+          (amber cards below).
+        </p>
+      ) : null}
 
       {coverage ? (
         <>
@@ -92,27 +113,13 @@ export function VsmeProgressHeader({
             />
           </div>
 
-          {(missingRequiredCount > 0 || missingMaterialCount > 0) && (
-            <div className="mt-3 space-y-1 text-sm text-amber-800">
-              {missingRequiredCount > 0 ? (
-                <p>
-                  {missingRequiredCount} required field
-                  {missingRequiredCount === 1 ? "" : "s"} missing (export
-                  blocking, highlighted below).
-                </p>
-              ) : null}
-              {missingMaterialCount > missingRequiredCount ? (
-                <p className="text-amber-700/90">
-                  {missingMaterialCount - missingRequiredCount} additional
-                  material field
-                  {missingMaterialCount - missingRequiredCount === 1
-                    ? ""
-                    : "s"}{" "}
-                  without data (optional scope or non-blocking).
-                </p>
-              ) : null}
-            </div>
-          )}
+          {showMissingRequiredIndicator && missingRequiredCount > 0 ? (
+            <p className="mt-3 text-sm text-amber-800">
+              {missingRequiredCount} required field
+              {missingRequiredCount === 1 ? "" : "s"} still missing (highlighted
+              below).
+            </p>
+          ) : null}
         </>
       ) : null}
     </div>

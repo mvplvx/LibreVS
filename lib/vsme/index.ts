@@ -71,10 +71,47 @@ export {
 } from "./completeness";
 export type { VsmeCompleteness } from "./completeness";
 export {
+  getReportingState,
+  getReportingStateFlags,
+  valuesByFieldIdFromRows,
+} from "./getReportingState";
+export {
+  validateEfragExport,
+  buildEfragExportSnapshot,
+  wouldFieldBeIncludedInExport,
+  exportExclusionReason,
+} from "./validateEfragExport";
+export type {
+  EfragExportSnapshot,
+  ExportValidationResult,
+} from "./validateEfragExport";
+export { buildExportPreview, buildExportPreviewFromValues } from "./buildExportPreview";
+export {
+  assertPeriodExportNotLocked,
+  createImmutableExportSnapshot,
+  finalizeExportSnapshot,
+  listExportSnapshotsForPeriod,
+  buildExportSnapshotPayloads,
+  ExportSnapshotLockedError,
+} from "./exportSnapshotVersioning";
+export type {
+  ExportSnapshotAuditTrail,
+  ExportSnapshotStatePayload,
+} from "./exportSnapshotVersioning";
+export type {
+  ExportPreview,
+  ExportPreviewField,
+  ExportPreviewSection,
+} from "./buildExportPreview";
+export type {
+  PeriodSnapshot,
+  ReportingState,
+} from "./getReportingState";
+export {
   deriveReportingState,
   REPORTING_STATE_LABELS,
 } from "./reportingState";
-export type { VsmeReportingState } from "./reportingState";
+export type { VsmeReportingState as VsmeLegacyReportingState } from "./reportingState";
 export { buildVsmePeriodSnapshot } from "./periodSnapshot";
 export type {
   VsmeSchema,

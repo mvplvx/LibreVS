@@ -7,6 +7,10 @@ import {
 } from "@/lib/vsme/runtime/dataTruthMode";
 import { VSME_SCHEMA_VERSION } from "@/lib/vsme/schemaVersion";
 import { guardRequiredToFillAlignment } from "@/lib/vsme/dev/contractGuard";
+import {
+  getReportingState,
+  valuesByFieldIdFromRows,
+} from "@/lib/vsme/getReportingState";
 
 export async function loadPeriodIntelligence(
   reportingPeriodId: string,
@@ -67,5 +71,23 @@ export async function loadPeriodIntelligence(
 
   guardRequiredToFillAlignment(vsme, employeeCount, materialityByFieldId);
 
-  return result;
+  const materialityDefined =
+    Object.keys(materialityByFieldId).length > 0;
+  const reportingState = getReportingState({
+    companyId: period.companyId,
+    reportingPeriodId: period.id,
+    employeeCount,
+    materialityByFieldId,
+    valuesByFieldId: valuesByFieldIdFromRows(vsme.values),
+    requiredFieldIds: vsme.completeness.requiredFieldIds,
+    missingRequiredFieldIds: vsme.completeness.missingRequiredFields,
+    exportReady: vsme.exportReady,
+    hasBeenExported: exportGenerated,
+    materialityDefined,
+  });
+
+  return {
+    ...result,
+    reportingState,
+  };
 }

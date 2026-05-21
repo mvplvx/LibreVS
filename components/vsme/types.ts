@@ -2,12 +2,7 @@
 
 export type VsmeMateriality = "material" | "non_material";
 
-export type VsmeReportingState =
-  | "draft"
-  | "in_progress"
-  | "ready_for_review"
-  | "export_ready"
-  | "exported";
+export type { ReportingState as VsmeReportingState } from "@/lib/vsme/getReportingState";
 
 export type VsmeCompleteness = {
   inScopeFieldIds: string[];

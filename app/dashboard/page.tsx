@@ -1,12 +1,16 @@
 "use client";
 
+import Link from "next/link";
+import { ExportCenter } from "@/components/export/ExportCenter";
 import {
   REPORTING_STATE_BADGE_CLASS,
   REPORTING_STATE_DESCRIPTIONS,
   REPORTING_STATE_LABELS,
 } from "@/components/vsme/reportingStateUi";
+import { ExportIntegrityIndicator } from "@/components/vsme/ExportIntegrityIndicator";
 import { VsmeWorkspaceSelectors } from "@/components/vsme/VsmeWorkspaceSelectors";
 import { useVsmeDashboard, useVsmeWorkspace } from "@/components/vsme/queries";
+import { useExportValidation } from "@/hooks/useExportValidation";
 
 export default function DashboardPage() {
   const {
@@ -22,9 +26,13 @@ export default function DashboardPage() {
   } = useVsmeWorkspace();
 
   const dashboardQuery = useVsmeDashboard(periodId);
+  const exportValidationQuery = useExportValidation(periodId);
   const dashboard = dashboardQuery.data ?? null;
 
-  const loading = workspaceLoading || dashboardQuery.isLoading;
+  const loading =
+    workspaceLoading ||
+    dashboardQuery.isLoading ||
+    exportValidationQuery.isLoading;
 
   const error =
     workspaceError ?? dashboardQuery.error?.message ?? null;
@@ -147,7 +155,18 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs uppercase text-slate-500">Export</p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs uppercase text-slate-500">Export</p>
+                      {exportValidationQuery.validation ? (
+                        <ExportIntegrityIndicator
+                          exportCoverage={
+                            exportValidationQuery.validation.exportCoverage
+                          }
+                          isValid={exportValidationQuery.validation.isValid}
+                          compact
+                        />
+                      ) : null}
+                    </div>
                     <p className="mt-2 text-lg font-semibold">
                       {dashboard.exportReady ? "Ready" : "Blocked"}
                     </p>
@@ -158,8 +177,33 @@ export default function DashboardPage() {
                         ? ""
                         : "s"}
                     </p>
+                    {periodId ? (
+                      <Link
+                        href={`/vsme/export-review?period=${periodId}`}
+                        className="mt-2 inline-block text-xs font-medium text-slate-700 underline"
+                      >
+                        Review before export →
+                      </Link>
+                    ) : null}
                   </div>
                 </div>
+
+                <ExportCenter
+                  periodId={periodId}
+                  year={dashboard.year ?? null}
+                  exportReady={dashboard.exportReady}
+                  mandatoryCoveragePercentage={
+                    dashboard.mandatoryCoveragePercentage ??
+                    dashboard.requiredCoveragePercentage ??
+                    0
+                  }
+                  missingRequiredCount={
+                    dashboard.completeness.missingRequiredFields.length
+                  }
+                  blockingFieldCount={
+                    dashboard.completeness.exportBlockingFields.length
+                  }
+                />
 
                 <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                   <h2 className="mb-4 text-lg font-medium">Sections</h2>

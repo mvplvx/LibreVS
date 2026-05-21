@@ -57,8 +57,35 @@ model ReportingPeriod {
 
   sustainabilityDataPoints SustainabilityDataPoint[]
   fieldMateriality       VsmeFieldMateriality[]
+  exportSnapshots        VsmeExportSnapshot[]
 
   createdAt DateTime @default(now())
+}
+
+/** Immutable EFRAG export capture for audit and version history. */
+model VsmeExportSnapshot {
+  id String @id @default(cuid())
+
+  reportingPeriodId String
+  reportingPeriod   ReportingPeriod @relation(fields: [reportingPeriodId], references: [id], onDelete: Cascade)
+
+  companyId String
+
+  createdAt DateTime @default(now())
+
+  stateSnapshot      Json
+  exportData         Json
+  validationResult   Json
+
+  reportingState String
+  coverage       Float
+
+  isFinal Boolean @default(false)
+  version Int
+
+  @@unique([reportingPeriodId, version])
+  @@index([reportingPeriodId])
+  @@index([companyId])
 }
 
 /** Per-field materiality assessment (material vs non_material) for a reporting period. */
