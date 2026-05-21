@@ -7,6 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users          User[]
+  companies      Company[]
+  portfolioViews PortfolioView[]
+}
+
+model User {
+  id    String  @id @default(cuid())
+  email String  @unique
+  name  String?
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
 model Company {
   id                 String   @id @default(cuid())
   name               String
@@ -14,6 +35,9 @@ model Company {
   country            String?
   industry           String?
   createdAt          DateTime @default(now())
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
 
   reportingPeriods ReportingPeriod[]
 }
@@ -36,15 +60,25 @@ model ReportingPeriod {
 model SustainabilityDataPoint {
   id String @id @default(cuid())
 
-  category String // e.g. "energy", "emissions", "waste"
-  key      String // specific metric name
-  value    String // keep flexible for MVP (no strict typing yet)
-  unit     String?
-
   reportingPeriodId String
   reportingPeriod   ReportingPeriod @relation(fields: [reportingPeriodId], references: [id])
 
+  fieldId String
+  value   String
+  unit    String?
+
   createdAt DateTime @default(now())
 
-  @@unique([reportingPeriodId, category, key])
+  @@unique([reportingPeriodId, fieldId])
+}
+
+model PortfolioView {
+  id   String @id @default(cuid())
+  name String
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  companyIds String
+  createdAt  DateTime @default(now())
 }

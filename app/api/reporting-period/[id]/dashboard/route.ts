@@ -3,7 +3,6 @@ import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
 import { loadPeriodIntelligence } from "@/lib/api/loadPeriodIntelligence";
 import { apiError, apiSuccess } from "@/lib/api/response";
 
-/** VSME field coverage snapshot (schema-driven; not ESG scoring). */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> | { id: string } }
@@ -21,13 +20,6 @@ export async function GET(
       return apiError("Reporting period not found", 404);
     }
 
-    return apiSuccess({
-      reportingPeriodId: data.reportingPeriodId,
-      year: data.year,
-      status: data.status,
-      companyId: data.companyId,
-      totalDataPoints: data.totalDataPoints,
-      vsme: data.vsme,
-    });
+    return apiSuccess(data);
   });
 }
