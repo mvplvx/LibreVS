@@ -26,10 +26,15 @@ export async function GET(
       year: data.year,
       status: data.status,
       companyId: data.companyId,
+      schemaVersion: data.schemaVersion,
+      employeeCount: data.employeeCount,
       totalDataPoints: data.totalDataPoints,
+      totalCoveragePercentage: data.vsme.totalCoveragePercentage,
+      requiredCoveragePercentage: data.vsme.requiredCoveragePercentage,
+      exportReady: data.vsme.exportReady,
+      completeness: data.vsme.completeness,
       summary: data.vsme.bySection,
       values: data.vsme.values,
-      coveragePercentage: data.vsme.coveragePercentage,
     });
   });
 }

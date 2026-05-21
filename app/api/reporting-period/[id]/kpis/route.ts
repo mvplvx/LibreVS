@@ -1,9 +1,10 @@
 import { getUser } from "@/lib/auth";
 import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
 import { loadPeriodIntelligence } from "@/lib/api/loadPeriodIntelligence";
+import { completenessApiFields } from "@/lib/api/vsmeCompletenessResponse";
 import { apiError, apiSuccess } from "@/lib/api/response";
 
-/** VSME field coverage snapshot (schema-driven; not ESG scoring). */
+/** VSME coverage metrics for a reporting period (schema-driven). */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> | { id: string } }
@@ -21,13 +22,22 @@ export async function GET(
       return apiError("Reporting period not found", 404);
     }
 
+    const { vsme } = data;
+
     return apiSuccess({
       reportingPeriodId: data.reportingPeriodId,
       year: data.year,
       status: data.status,
       companyId: data.companyId,
+      schemaVersion: data.schemaVersion,
+      employeeCount: data.employeeCount,
       totalDataPoints: data.totalDataPoints,
-      vsme: data.vsme,
+      totalCoveragePercentage: vsme.totalCoveragePercentage,
+      fieldsReported: vsme.fieldsReported,
+      totalFields: vsme.totalFields,
+      ...completenessApiFields(vsme),
+      applicableSections: vsme.applicableSections,
+      bySection: vsme.bySection,
     });
   });
 }

@@ -1,12 +1,10 @@
 import { getUser } from "@/lib/auth";
 import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
 import { loadPeriodIntelligence } from "@/lib/api/loadPeriodIntelligence";
+import { completenessApiFields } from "@/lib/api/vsmeCompletenessResponse";
 import { apiError, apiSuccess } from "@/lib/api/response";
 
-/**
- * Legacy route name retained for compatibility.
- * Returns VSME registry coverage only (no ESG scoring in Phase 4).
- */
+/** VSME registry coverage and mandatory completeness for a reporting period. */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> | { id: string } }
@@ -24,13 +22,18 @@ export async function GET(
       return apiError("Reporting period not found", 404);
     }
 
+    const { vsme } = data;
+
     return apiSuccess({
       reportingPeriodId: data.reportingPeriodId,
-      note: "Phase 4: VSME coverage only. ESG scoring is not part of this architecture.",
-      coveragePercentage: data.vsme.coveragePercentage,
-      fieldsReported: data.vsme.fieldsReported,
-      totalFields: data.vsme.totalFields,
-      bySection: data.vsme.bySection,
+      schemaVersion: data.schemaVersion,
+      employeeCount: data.employeeCount,
+      totalCoveragePercentage: vsme.totalCoveragePercentage,
+      fieldsReported: vsme.fieldsReported,
+      totalFields: vsme.totalFields,
+      applicableSections: vsme.applicableSections,
+      ...completenessApiFields(vsme),
+      bySection: vsme.bySection,
     });
   });
 }

@@ -1,104 +1,33 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-
-type Company = { id: string; name: string };
-
-type ReportingPeriod = {
-  id: string;
-  year: number;
-  status: string;
-  companyId: string;
-};
-
-type DashboardData = {
-  reportingPeriodId: string;
-  year: number;
-  status: string;
-  companyId: string;
-  totalDataPoints: number;
-  vsme: {
-    fieldsReported: number;
-    totalFields: number;
-    coveragePercentage: number;
-    bySection: Record<string, { reported: number; total: number }>;
-    values: {
-      fieldId: string;
-      path: string;
-      label: string;
-      value: string;
-      unit: string | null;
-      excelCell: string;
-    }[];
-  };
-};
+import {
+  REPORTING_STATE_BADGE_CLASS,
+  REPORTING_STATE_DESCRIPTIONS,
+  REPORTING_STATE_LABELS,
+} from "@/components/vsme/reportingStateUi";
+import { VsmeWorkspaceSelectors } from "@/components/vsme/VsmeWorkspaceSelectors";
+import { useVsmeDashboard, useVsmeWorkspace } from "@/components/vsme/queries";
 
 export default function DashboardPage() {
-  const [company, setCompany] = useState<Company | null>(null);
-  const [periods, setPeriods] = useState<ReportingPeriod[]>([]);
-  const [selectedPeriodId, setSelectedPeriodId] = useState("");
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingDashboard, setLoadingDashboard] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    companies,
+    company,
+    employeeCount,
+    periods,
+    periodId,
+    setCompanyId,
+    setPeriodId,
+    isLoading: workspaceLoading,
+    error: workspaceError,
+  } = useVsmeWorkspace();
 
-  const loadDashboard = useCallback(async (periodId: string) => {
-    setLoadingDashboard(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/reporting-period/${periodId}/dashboard`);
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error ?? "Failed to load dashboard");
-      }
-      setDashboard(json.data);
-    } catch (err) {
-      setDashboard(null);
-      setError(err instanceof Error ? err.message : "Failed to load dashboard");
-    } finally {
-      setLoadingDashboard(false);
-    }
-  }, []);
+  const dashboardQuery = useVsmeDashboard(periodId);
+  const dashboard = dashboardQuery.data ?? null;
 
-  useEffect(() => {
-    async function init() {
-      setLoading(true);
-      try {
-        const [companyRes, periodsRes] = await Promise.all([
-          fetch("/api/company"),
-          fetch("/api/reporting-period"),
-        ]);
-        const companyJson = await companyRes.json();
-        const periodsJson = await periodsRes.json();
-        if (!companyRes.ok || !companyJson.success) {
-          throw new Error(companyJson.error ?? "Failed to load company");
-        }
-        if (!periodsRes.ok || !periodsJson.success) {
-          throw new Error(periodsJson.error ?? "Failed to load periods");
-        }
-        const companies: Company[] = companyJson.data ?? [];
-        const first = companies[0] ?? null;
-        setCompany(first);
-        const companyPeriods = (periodsJson.data ?? []).filter(
-          (p: ReportingPeriod) => !first || p.companyId === first.id
-        );
-        setPeriods(companyPeriods);
-        const latest = companyPeriods[0]?.id ?? "";
-        setSelectedPeriodId(latest);
-        if (latest) await loadDashboard(latest);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to initialize");
-      } finally {
-        setLoading(false);
-      }
-    }
-    init();
-  }, [loadDashboard]);
+  const loading = workspaceLoading || dashboardQuery.isLoading;
 
-  useEffect(() => {
-    if (selectedPeriodId) loadDashboard(selectedPeriodId);
-    else setDashboard(null);
-  }, [selectedPeriodId, loadDashboard]);
+  const error =
+    workspaceError ?? dashboardQuery.error?.message ?? null;
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -108,6 +37,12 @@ export default function DashboardPage() {
           <p className="mt-1 text-sm text-slate-600">
             Schema-driven local reporting (EFRAG-aligned, single company)
           </p>
+          <a
+            href="/vsme"
+            className="mt-2 inline-block text-sm font-medium text-slate-800 underline"
+          >
+            Open VSME data entry →
+          </a>
         </header>
 
         {error && (
@@ -118,78 +53,142 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-12 gap-6">
           <aside className="col-span-12 lg:col-span-3 space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-2 text-sm font-semibold uppercase text-slate-500">
-                Company
-              </h2>
-              {company ? (
-                <p className="font-medium">{company.name}</p>
-              ) : (
-                <p className="text-sm text-slate-500">No company</p>
-              )}
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="mb-2 text-sm font-semibold uppercase text-slate-500">
-                Reporting period
-              </h2>
-              <select
-                value={selectedPeriodId}
-                onChange={(e) => setSelectedPeriodId(e.target.value)}
-                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-              >
-                {periods.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.year} ({p.status})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <VsmeWorkspaceSelectors
+              companies={companies}
+              company={company}
+              employeeCount={employeeCount}
+              periods={periods}
+              periodId={periodId}
+              onCompanyChange={setCompanyId}
+              onPeriodChange={setPeriodId}
+            />
           </aside>
 
           <div className="col-span-12 lg:col-span-9 space-y-6">
-            {loading || loadingDashboard ? (
+            {loading ? (
               <p className="text-sm text-slate-500">Loading…</p>
             ) : dashboard ? (
               <>
-                <div className="grid gap-4 sm:grid-cols-3">
+                <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Reporting state
+                      </p>
+                      <p className="mt-1 text-xl font-semibold text-slate-900">
+                        {REPORTING_STATE_LABELS[dashboard.reportingState]}
+                      </p>
+                      <p className="mt-1 max-w-xl text-sm text-slate-600">
+                        {REPORTING_STATE_DESCRIPTIONS[dashboard.reportingState]}
+                      </p>
+                      <p className="mt-2 text-xs text-slate-500">
+                        Derived from snapshot · {dashboard.requiredCoveragePercentage}%
+                        required complete · period DB status:{" "}
+                        <span className="font-medium">{dashboard.status}</span>
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${REPORTING_STATE_BADGE_CLASS[dashboard.reportingState]}`}
+                    >
+                      {dashboard.reportingState.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                </section>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                   <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs uppercase text-slate-500">VSME coverage</p>
+                    <p className="text-xs uppercase text-slate-500">
+                      In-scope completeness
+                    </p>
                     <p className="mt-2 text-3xl font-semibold">
-                      {dashboard.vsme.coveragePercentage}%
+                      {dashboard.inScopeCoveragePercentage}%
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {dashboard.completeness.completedFieldIds.filter((id) =>
+                        dashboard.completeness.inScopeFieldIds.includes(id)
+                      ).length}{" "}
+                      / {dashboard.completeness.inScopeFieldIds.length} in scope
                     </p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs uppercase text-slate-500">Fields reported</p>
+                    <p className="text-xs uppercase text-slate-500">
+                      Material completeness
+                    </p>
                     <p className="mt-2 text-3xl font-semibold">
-                      {dashboard.vsme.fieldsReported} / {dashboard.vsme.totalFields}
+                      {dashboard.materialCoveragePercentage}%
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {dashboard.completeness.missingMaterialFields.length}{" "}
+                      material without data
                     </p>
                   </div>
                   <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs uppercase text-slate-500">Data points</p>
+                    <p className="text-xs uppercase text-slate-500">
+                      Required completeness
+                    </p>
                     <p className="mt-2 text-3xl font-semibold">
-                      {dashboard.totalDataPoints}
+                      {dashboard.requiredCoveragePercentage}%
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {dashboard.completeness.missingRequiredFields.length}{" "}
+                      required missing
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="text-xs uppercase text-slate-500">
+                      Registry coverage
+                    </p>
+                    <p className="mt-2 text-3xl font-semibold">
+                      {dashboard.totalCoveragePercentage}%
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {dashboard.fieldsReported} / {dashboard.totalFields}{" "}
+                      fields
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="text-xs uppercase text-slate-500">Export</p>
+                    <p className="mt-2 text-lg font-semibold">
+                      {dashboard.exportReady ? "Ready" : "Blocked"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {dashboard.completeness.exportBlockingFields.length}{" "}
+                      blocking field
+                      {dashboard.completeness.exportBlockingFields.length === 1
+                        ? ""
+                        : "s"}
                     </p>
                   </div>
                 </div>
 
                 <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                  <h2 className="mb-4 text-lg font-medium">Coverage by section</h2>
+                  <h2 className="mb-4 text-lg font-medium">Sections</h2>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {Object.entries(dashboard.vsme.bySection).map(([code, s]) => (
-                      <div
-                        key={code}
-                        className="rounded-md border border-slate-100 bg-slate-50 p-3 text-sm"
-                      >
-                        <p className="font-medium">{code}</p>
-                        <p className="text-slate-600">
-                          {s.reported} / {s.total} fields
-                        </p>
-                      </div>
-                    ))}
+                    {dashboard.applicableSections.map((s) => {
+                      const counts = dashboard.bySection[s.sectionCode];
+                      return (
+                        <div
+                          key={s.sectionCode}
+                          className="rounded-md border border-slate-100 bg-slate-50 p-3 text-sm"
+                        >
+                          <p className="font-medium">
+                            {s.sectionCode}{" "}
+                            <span className="text-xs font-normal text-slate-500">
+                              ({s.workflowLabel.replace(/_/g, " ")})
+                            </span>
+                          </p>
+                          {counts && (
+                            <p className="text-slate-600">
+                              {counts.reported} / {counts.total} fields
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
 
-                {dashboard.vsme.values.length > 0 && (
+                {dashboard.values.length > 0 && (
                   <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
                     <h2 className="mb-4 text-lg font-medium">Reported values</h2>
                     <div className="max-h-96 overflow-y-auto">
@@ -202,7 +201,7 @@ export default function DashboardPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {dashboard.vsme.values.map((row) => (
+                          {dashboard.values.map((row) => (
                             <tr key={row.fieldId} className="border-b border-slate-50">
                               <td className="py-2 pr-4">
                                 <p className="font-medium">{row.label}</p>

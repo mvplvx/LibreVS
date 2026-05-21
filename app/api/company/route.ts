@@ -23,16 +23,22 @@ export async function POST(req: Request) {
       return apiError("Invalid JSON body", 400);
     }
 
-    const { name, registrationNumber, country, industry } = body as {
+    const { name, registrationNumber, country, industry, employeeCount } = body as {
       name?: unknown;
       registrationNumber?: unknown;
       country?: unknown;
       industry?: unknown;
+      employeeCount?: unknown;
     };
 
     if (typeof name !== "string" || !name.trim()) {
       return apiError("name is required", 400);
     }
+
+    const parsedEmployeeCount =
+      typeof employeeCount === "number" && Number.isFinite(employeeCount)
+        ? Math.max(0, Math.floor(employeeCount))
+        : undefined;
 
     const company = await prisma.company.create({
       data: {
@@ -43,6 +49,7 @@ export async function POST(req: Request) {
             : undefined,
         country: typeof country === "string" ? country : undefined,
         industry: typeof industry === "string" ? industry : undefined,
+        employeeCount: parsedEmployeeCount,
         organizationId,
       },
     });

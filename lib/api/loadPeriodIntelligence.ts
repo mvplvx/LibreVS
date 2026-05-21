@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/db/prisma";
+import { loadMaterialityForPeriod } from "@/lib/vsme/loadMateriality";
 import { buildVsmePeriodSnapshot } from "@/lib/vsme/periodSnapshot";
+import {
+  assertV2Only,
+  filterLegacyDataPoints,
+} from "@/lib/vsme/runtime/dataTruthMode";
+import { VSME_SCHEMA_VERSION } from "@/lib/vsme/schemaVersion";
 
 export async function loadPeriodIntelligence(
   reportingPeriodId: string,
@@ -10,24 +16,40 @@ export async function loadPeriodIntelligence(
       id: reportingPeriodId,
       company: { organizationId },
     },
+    include: { company: { select: { employeeCount: true } } },
   });
 
   if (!period) {
     return null;
   }
 
+  const employeeCount = period.company.employeeCount ?? 0;
+  const materialityByFieldId = await loadMaterialityForPeriod(reportingPeriodId);
+
   const dataPoints = await prisma.sustainabilityDataPoint.findMany({
     where: { reportingPeriodId },
     orderBy: [{ fieldId: "asc" }],
   });
 
+  const stored = dataPoints.map((dp) => ({
+    fieldId: dp.fieldId,
+    value: dp.value,
+    unit: dp.unit,
+    createdAt: dp.createdAt,
+    legacyFieldId: dp.legacyFieldId,
+    migratedFieldId: dp.migratedFieldId,
+    migrationStatus: dp.migrationStatus,
+  }));
+
+  assertV2Only(stored, "loadPeriodIntelligence");
+  const v2Only = filterLegacyDataPoints(stored);
+  /** Snapshot includes `completeness` sets (inScope/material/required/completed + derived gaps). */
+  const exportGenerated = period.status === "exported";
   const vsme = buildVsmePeriodSnapshot(
-    dataPoints.map((dp) => ({
-      fieldId: dp.fieldId,
-      value: dp.value,
-      unit: dp.unit,
-      createdAt: dp.createdAt,
-    }))
+    v2Only,
+    employeeCount,
+    materialityByFieldId,
+    { exportGenerated }
   );
 
   return {
@@ -35,7 +57,10 @@ export async function loadPeriodIntelligence(
     year: period.year,
     status: period.status,
     companyId: period.companyId,
+    schemaVersion: VSME_SCHEMA_VERSION,
+    employeeCount,
+    materialityByFieldId,
     vsme,
-    totalDataPoints: dataPoints.length,
+    totalDataPoints: v2Only.length,
   };
 }

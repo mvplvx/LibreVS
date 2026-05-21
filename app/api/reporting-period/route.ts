@@ -4,6 +4,7 @@ import { findCompanyInOrganization } from "@/lib/api/organizationScope";
 import { withApiHandler, parseJsonBody } from "@/lib/api/handler";
 import { apiError, apiSuccess, formatZodError } from "@/lib/api/response";
 import { createReportingPeriodSchema } from "@/lib/validators/reportingPeriod";
+import { VSME_SCHEMA_VERSION } from "@/lib/vsme/schemaVersion";
 
 export async function GET(req: Request) {
   return withApiHandler(async () => {
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
         status,
         startDate,
         endDate,
+        schemaVersion: VSME_SCHEMA_VERSION,
       },
     });
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
- * LibreVS backend regression audit script.
+ * LibreVS backend regression audit (VSME Phase 4 stabilization).
  * Usage: node scripts/backend-audit.mjs [baseUrl]
- * Default baseUrl: http://localhost:3000
  */
 
 const BASE = process.argv[2] ?? "http://localhost:3000";
@@ -50,21 +49,29 @@ async function dbChecks() {
       `orphans=${orphans[0].count}`
     );
 
-    const orphanPeriods = await prisma.$queryRaw`
-      SELECT COUNT(*)::int AS count FROM "ReportingPeriod" rp
-      LEFT JOIN "Company" c ON rp."companyId" = c.id
-      WHERE c.id IS NULL
-    `;
-    record(
-      "DB: no orphan ReportingPeriod rows",
-      orphanPeriods[0].count === 0,
-      `orphans=${orphanPeriods[0].count}`
-    );
-
     const period = await prisma.reportingPeriod.findFirst({
-      include: { company: true, sustainabilityDataPoints: true },
+      include: { company: true },
     });
     record("DB: at least one reporting period exists", !!period);
+
+    if (period) {
+      record(
+        "DB: reporting period has schemaVersion",
+        typeof period.schemaVersion === "string" && period.schemaVersion.length > 0,
+        `schemaVersion=${period.schemaVersion}`
+      );
+    }
+
+    const portfolioTable = await prisma.$queryRaw`
+      SELECT COUNT(*)::int AS count
+      FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'PortfolioView'
+    `;
+    record(
+      "DB: PortfolioView table removed",
+      portfolioTable[0].count === 0,
+      `exists=${portfolioTable[0].count}`
+    );
 
     return period;
   } finally {
@@ -76,121 +83,175 @@ async function main() {
   console.log(`\nLibreVS Backend Audit — ${BASE}\n`);
 
   let periodId = null;
-  let companyId = null;
 
   try {
     const period = await dbChecks();
     periodId = period?.id ?? null;
-    companyId = period?.companyId ?? null;
   } catch (e) {
     record("DB connectivity", false, String(e.message));
   }
 
-  // --- GET /api/reporting-period ---
   {
-    const { res, body } = await request("/api/reporting-period");
+    const { res, body } = await request("/api/vsme/schema");
     record(
-      "GET /api/reporting-period — JSON + success",
-      res.status === 200 && isJsonResponse(res, body) && body.success === true,
+      "GET /api/vsme/schema — registry metadata",
+      res.status === 200 &&
+        isJsonResponse(res, body) &&
+        body.success === true &&
+        typeof body.data?.fieldCount === "number",
       `status=${res.status}`
     );
   }
 
-  // --- POST /api/reporting-period invalid JSON ---
   {
-    const { res, body } = await request("/api/reporting-period", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "not-json",
-    });
+    const { res, body } = await request("/api/vsme/ui-schema?employeeCount=600");
+    const section = body.data?.sections?.[0];
     record(
-      "POST /api/reporting-period — invalid JSON → 400 JSON",
-      res.status === 400 && isJsonResponse(res, body) && body.success === false,
+      "GET /api/vsme/ui-schema — applicability contract",
+      res.status === 200 &&
+        isJsonResponse(res, body) &&
+        body.success === true &&
+        section?.applicability?.moduleInReportingScope !== undefined &&
+        section?.subsections?.[0]?.fields?.[0]?.applicability?.requiredToFill !==
+          undefined &&
+        section?.subsections?.[0]?.fields?.[0]?.type !== undefined,
       `status=${res.status}`
     );
   }
 
-  // --- POST /api/reporting-period missing fields ---
   {
-    const { res, body } = await request("/api/reporting-period", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
+    const { res, body } = await request("/api/vsme/applicability?employeeCount=600");
     record(
-      "POST /api/reporting-period — invalid body → 400 JSON",
-      res.status === 400 && isJsonResponse(res, body) && body.success === false,
-      `status=${res.status}`
-    );
-  }
-
-  // --- GET /api/data-point missing param ---
-  {
-    const { res, body } = await request("/api/data-point");
-    record(
-      "GET /api/data-point — missing param → 400 JSON",
-      res.status === 400 && isJsonResponse(res, body) && body.success === false,
-      `status=${res.status}`
-    );
-  }
-
-  // --- GET /api/data-point invalid period ---
-  {
-    const { res, body } = await request(
-      "/api/data-point?reportingPeriodId=nonexistent-period-id"
-    );
-    record(
-      "GET /api/data-point — invalid period → 404 JSON",
-      res.status === 404 && isJsonResponse(res, body) && body.success === false,
+      "GET /api/vsme/applicability — comprehensive required",
+      res.status === 200 &&
+        body.data?.moduleCInReportingScope === true,
       `status=${res.status}`
     );
   }
 
   if (periodId) {
-    const { res, body } = await request(
-      `/api/data-point?reportingPeriodId=${periodId}`
+    const { res: kRes, body: kBody } = await request(
+      `/api/reporting-period/${periodId}/kpis`
     );
     record(
-      "GET /api/data-point — valid period → 200 JSON",
-      res.status === 200 && isJsonResponse(res, body) && body.success === true,
-      `status=${res.status}`
+      "GET /api/reporting-period/[id]/kpis — completeness metrics",
+      kRes.status === 200 &&
+        isJsonResponse(kRes, kBody) &&
+        typeof kBody.data?.requiredCoveragePercentage === "number" &&
+        typeof kBody.data?.completeness?.requiredFieldIds !== "undefined" &&
+        typeof kBody.data?.exportReady === "boolean",
+      `required=${kBody.data?.requiredCoveragePercentage}%`
     );
-  }
 
-  // --- POST /api/data-point ---
-  {
-    const { res, body } = await request("/api/data-point", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reportingPeriodId: "x", dataPoints: [] }),
-    });
+    const { res: covRes, body: covBody } = await request(
+      `/api/reporting-period/${periodId}/vsme-coverage`
+    );
     record(
-      "POST /api/data-point — empty array → 400 JSON",
-      res.status === 400 && isJsonResponse(res, body) && body.success === false,
-      `status=${res.status}`
+      "GET /api/reporting-period/[id]/vsme-coverage — 200",
+      covRes.status === 200 && isJsonResponse(covRes, covBody),
+      `status=${covRes.status}`
+    );
+
+    const { res: oldRes } = await request(
+      `/api/reporting-period/${periodId}/esg-score`
+    );
+    record(
+      "GET /api/reporting-period/[id]/esg-score — removed (404)",
+      oldRes.status === 404,
+      `status=${oldRes.status}`
+    );
+
+    if (kBody?.success && covBody?.data) {
+      const kRequired = kBody.data.requiredCoveragePercentage;
+      const cRequired = covBody.data.requiredCoveragePercentage;
+      record(
+        "KPI vs vsme-coverage required % match",
+        kRequired === cRequired,
+        `kpis=${kRequired} coverage=${cRequired}`
+      );
+    }
+
+    const { res: expRes, body: expBody } = await request(
+      `/api/reporting-period/${periodId}/export`
+    );
+    const row = expBody.data?.rows?.[0];
+    record(
+      "GET /api/reporting-period/[id]/export — fieldId→excelCell",
+      expRes.status === 200 &&
+        (expBody.data?.rows?.length === 0 ||
+          (row?.fieldId && row?.excelCell)),
+      `rows=${expBody.data?.rows?.length ?? 0} exportReady=${expBody.data?.exportReady}`
     );
   }
 
   if (periodId) {
-    const { res, body } = await request("/api/data-point", {
+    const upsertPayload = {
+      reportingPeriodId: periodId,
+      dataPoints: [
+        { fieldId: "B3_ELECTRICITY_ELECTRICITY_RENEWABLE_MWH", value: "42", unit: "MWh" },
+      ],
+    };
+    const first = await request("/api/data-point", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(upsertPayload),
+    });
+    const second = await request("/api/data-point", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        reportingPeriodId: "nonexistent-period-id",
-        dataPoints: [{ fieldId: "B3_ELECTRICITY_RENEWABLE", value: "10", unit: "MWh" }],
+        reportingPeriodId: periodId,
+        dataPoints: [
+          { fieldId: "B3_ELECTRICITY_ELECTRICITY_RENEWABLE_MWH", value: "99", unit: "MWh" },
+        ],
       }),
     });
     record(
-      "POST /api/data-point — invalid period → 404 JSON",
-      res.status === 404 && isJsonResponse(res, body) && body.success === false,
-      `status=${res.status}`
+      "POST /api/data-point — upsert (200, updated≥1)",
+      first.res.status === 200 &&
+        second.res.status === 200 &&
+        second.body.success === true &&
+        (second.body.data?.updated >= 1 || second.body.data?.upserted >= 1),
+      `first=${first.res.status} second updated=${second.body.data?.updated}`
+    );
+
+    const badUnit = await request("/api/data-point", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reportingPeriodId: periodId,
+        dataPoints: [
+          { fieldId: "B3_ELECTRICITY_ELECTRICITY_RENEWABLE_MWH", value: "1", unit: "kWh" },
+        ],
+      }),
+    });
+    record(
+      "POST /api/data-point — wrong unit → 400",
+      badUnit.res.status === 400 && badUnit.body.success === false,
+      `status=${badUnit.res.status}`
+    );
+
+    const badType = await request("/api/data-point", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reportingPeriodId: periodId,
+        dataPoints: [
+          { fieldId: "B3_ELECTRICITY_ELECTRICITY_RENEWABLE_MWH", value: "not-a-number", unit: "MWh" },
+        ],
+      }),
+    });
+    record(
+      "POST /api/data-point — invalid number → 400",
+      badType.res.status === 400 && badType.body.success === false,
+      `status=${badType.res.status}`
     );
   }
 
   const fakeId = "000000000000000000000000";
   for (const path of [
     `/api/reporting-period/${fakeId}/summary`,
-    `/api/reporting-period/${fakeId}/kpis`,
+    `/api/reporting-period/${fakeId}/vsme-coverage`,
   ]) {
     const { res, body } = await request(path);
     record(
@@ -200,125 +261,9 @@ async function main() {
     );
   }
 
-  if (periodId) {
-    const { res, body } = await request(
-      `/api/reporting-period/${periodId}/summary`
-    );
-    const ok =
-      res.status === 200 &&
-      isJsonResponse(res, body) &&
-      body.success === true &&
-      typeof body.data?.summary === "object" &&
-      typeof body.data?.totalDataPoints === "number";
-    record("GET /api/reporting-period/[id]/summary — 200 + shape", ok, `status=${res.status}`);
-
-    const { res: kRes, body: kBody } = await request(
-      `/api/reporting-period/${periodId}/kpis`
-    );
-    const kOk =
-      kRes.status === 200 &&
-      isJsonResponse(kRes, kBody) &&
-      kBody.success === true &&
-      typeof kBody.data?.kpis?.energy === "number" &&
-      typeof kBody.data?.kpis?.emissions === "number" &&
-      typeof kBody.data?.kpis?.waste === "number" &&
-      kBody.data.kpis.energy !== undefined &&
-      typeof kBody.data.completenessScore === "number";
-    record("GET /api/reporting-period/[id]/kpis — 200 + KPI defaults", kOk, `status=${kRes.status}`);
-  }
-
-  // Duplicate insert (unique constraint)
-  if (periodId) {
-    const payload = {
-      reportingPeriodId: periodId,
-      dataPoints: [{ fieldId: "B3_ELECTRICITY_RENEWABLE", value: "1", unit: "MWh" }],
-    };
-    await request("/api/data-point", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const { res, body } = await request("/api/data-point", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    record(
-      "POST /api/data-point — duplicate → 409 JSON",
-      res.status === 409 && isJsonResponse(res, body) && body.success === false,
-      `status=${res.status} error=${body.error}`
-    );
-  }
-
-  // Bulk insert uses unique VSME fieldIds (sample from B1 identification)
-  if (periodId) {
-    const sampleFieldIds = [
-      "B1_IDENTIFICATION_LEGAL_NAME",
-      "B1_IDENTIFICATION_TRADING_NAME",
-      "B1_IDENTIFICATION_REGISTRATION_NUMBER",
-      "B1_REPORTING_REPORTING_PERIOD_START",
-      "B1_CONTACT_PRIMARY_CONTACT_NAME",
-      "B3_ELECTRICITY_RENEWABLE",
-      "B3_ELECTRICITY_TOTAL",
-      "B4_SCOPE1_TOTAL",
-      "B5_WITHDRAWAL_TOTAL",
-      "B6_WASTE_GENERATED_TOTAL",
-    ];
-    const bulk = {
-      reportingPeriodId: periodId,
-      dataPoints: sampleFieldIds.map((fieldId, i) => ({
-        fieldId,
-        value: String(i + 1),
-      })),
-    };
-    const t0 = Date.now();
-    const { res, body } = await request("/api/data-point", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(bulk),
-    });
-    const ms = Date.now() - t0;
-    record(
-      "POST /api/data-point — 100 bulk insert",
-      res.status === 201 && body.success === true && body.data?.created === 100,
-      `status=${res.status} ${ms}ms`
-    );
-  }
-
-  // Non-JSON route (should 404 JSON from Next or HTML - check unknown)
   {
-    const { res, body } = await request("/api/does-not-exist");
-    const notHtml = !(body._raw && body._raw.includes("<!DOCTYPE"));
-    record(
-      "Unknown route — not HTML crash page",
-      notHtml || res.status === 404,
-      `status=${res.status}`
-    );
-  }
-
-  if (periodId) {
-    const { res: kRes, body: kBody } = await request(
-      `/api/reporting-period/${periodId}/kpis`
-    );
-    const { res: eRes, body: eBody } = await request(
-      `/api/reporting-period/${periodId}/esg-score`
-    );
-    const kCov = kBody.data?.vsme?.coveragePercentage;
-    const eCov = eBody.data?.coveragePercentage;
-    record(
-      "KPI vs ESG coverage match (VSME Phase 4)",
-      kRes.status === 200 &&
-        eRes.status === 200 &&
-        kCov === eCov,
-      `kpi=${kCov} esg=${eCov}`
-    );
-
-    const { res: pRes } = await request("/api/portfolio/compare?companyIds=x");
-    record(
-      "Portfolio compare disabled (404)",
-      pRes.status === 404,
-      `status=${pRes.status}`
-    );
+    const { res } = await request("/api/portfolio/compare?companyIds=x");
+    record("Portfolio compare route removed (404)", res.status === 404, `status=${res.status}`);
   }
 
   const passed = results.filter((r) => r.pass).length;

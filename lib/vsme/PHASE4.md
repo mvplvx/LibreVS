@@ -6,48 +6,85 @@ LibreVS Phase 4 is a **schema-driven VSME reporting engine** aligned with **EFRA
 
 The VSME schema is the **single source of truth** for:
 
-- UI structure (`lib/vsme/vsme.uiSchema.ts`, generated from `vsme.schema.ts`)
+- UI structure (`vsme.uiSchema.ts`, generated from `vsme.schema.ts`)
 - Database field identifiers (`fieldId` in `SustainabilityDataPoint`)
 - Export mapping to EFRAG Excel cells (`excelCell` per field)
+- Applicability rules (`applicability.ts`) — workflow/export only
 
-**One EFRAG Excel cell = one canonical field** in `lib/vsme/vsme.fieldRegistry.ts`.
+**One EFRAG Excel cell = one canonical field** in `vsme.fieldRegistry.ts`.
 
-## Core principles
+## B1–C9: equal schema fidelity
 
-1. **Schema is source of truth** — Sections B1–B11 (mandatory SME) and C1–C9 (conditional, 501–1000 employees) are defined explicitly in code.
-2. **UI is generated from schema** — No hardcoded forms; rendering reads `VSME_UI_SCHEMA`.
-3. **DB stores `fieldId` values only** — No free-form `category` / `key` pairs.
-4. **Export is deterministic** — `fieldId` → path → `excelCell` mapping without interpretation.
-5. **Local, single-installation** — One organization per deployment; data stays isolated.
+**CRITICAL:** C1–C9 are **not** optional modules in the technical architecture.
 
-## Explicitly out of scope (Phase 4)
+| Module | Sections | Schema | Workflow (<500 employees) | Workflow (501–1000) |
+|--------|----------|--------|---------------------------|---------------------|
+| **B** | B1–B11 | Full field-level registry | Required | Required |
+| **C** | C1–C9 | Full field-level registry | Available (voluntary) | Required (comprehensive) |
 
-- No AI inference or narrative generation
-- No ESG scoring or risk interpretation engine
-- No portfolio comparison or multi-company benchmarking
-- No cross-company analytics or ranking
-- No compliance validation engine (no pass/fail rules engine beyond `fieldId` validation)
+“Optional” applies **only** to applicability (visibility / required flags), **not** to implementation depth, field count, or granularity.
 
-## Data flow
+## Applicability engine
 
-```
-vsme.schema.ts
-    → vsme.fieldRegistry.ts (FIELD_ID → path)
-    → vsme.uiSchema.ts (UI sections/subsections/fields)
-    → API writes (validateFieldId)
-    → SustainabilityDataPoint { fieldId, value, unit }
-    → Export (Excel / JSON by excelCell)
-```
+`requiresComprehensiveModule(employeeCount)` → `employeeCount > 500`
+
+Controls **only**:
+
+- Section visibility (all B + C always visible)
+- Required status in UI workflow
+- Export validation (which fields must be completed)
+
+Does **not**:
+
+- Infer sustainability data
+- Score companies
+- Act as compliance AI
+
+## Export rules
+
+- **B-section fields:** always in export scope when reported; all B fields required for complete export
+- **C-section fields:** required for complete export when `employeeCount > 500`; below threshold, included if user voluntarily completed any field in that section
+- Mapping: `fieldId` → `path` → `excelCell` (deterministic)
+
+## Implementation priority
+
+1. Canonical VSME schema registry (`vsme.schema.ts`)
+2. Field-level persistence (`fieldId` + `vsme.fieldRegistry.ts`)
+3. Applicability logic (`applicability.ts`)
+4. Dynamic schema-driven rendering (`vsme.uiSchema.ts` + `?employeeCount=`)
+5. Export mapping layer (`exportMapping.ts`)
+
+## Canonical registry v2.0.0
+
+Full EFRAG-aligned B1–B11 + C1–C9 registry (~264 fields). See `SCHEMA_CHANGELOG.md`.
+
+Excel mapping: `{Sheet}!{XbrlNamedRange}` per Digital Template v1.1.0.
+
+## Stabilization (pre-expansion)
+
+- Legacy `lib/api/intelligence.ts` and `lib/api/summary.ts` removed
+- Coverage route: `GET /api/reporting-period/[id]/vsme-coverage`
+- Data points: upsert + registry type/unit validation
+- Metrics: `totalCoveragePercentage`, `mandatoryCoveragePercentage`, `exportReady`
+- `ReportingPeriod.schemaVersion` stamped on create
+- `PortfolioView` removed from schema
+
+## Explicitly out of scope
+
+- Benchmarking / peer comparison
+- ESG scoring
+- Automated materiality inference
+- Enterprise workflow engine
+- AI compliance interpretation
+- Portfolio comparison
 
 ## Modules
 
 | Module | Role |
 |--------|------|
-| `vsme.schema.ts` | Full canonical VSME tree |
-| `vsme.fieldRegistry.ts` | Flattened FIELD_ID registry |
-| `vsme.uiSchema.ts` | UI generator output |
-| `validateField.ts` | Reject unknown fields at API boundary |
-
-## Validation rule
-
-All data-point writes must call `validateFieldId(fieldId)` before insert. Unknown `fieldId` → HTTP 400 JSON.
+| `vsme.schema.ts` | Full B1–B11 + C1–C9 tree |
+| `vsme.fieldRegistry.ts` | FIELD_ID registry + module/applicability metadata |
+| `applicability.ts` | Employee-count workflow & export rules |
+| `exportMapping.ts` | Export row build + completeness validation |
+| `vsme.uiSchema.ts` | UI with required/optional flags per employee count |
+| `validateField.ts` | API boundary for unknown fieldIds |
