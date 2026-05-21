@@ -1,28 +1,46 @@
 import { prisma } from "@/lib/db/prisma";
+import { withApiHandler, parseJsonBody } from "@/lib/api/handler";
+import { apiError, apiSuccess } from "@/lib/api/response";
 
 export async function GET() {
-  const companies = await prisma.company.findMany();
-
-  return Response.json({
-    success: true,
-    data: companies,
+  return withApiHandler(async () => {
+    const companies = await prisma.company.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+    return apiSuccess(companies);
   });
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
+  return withApiHandler(async () => {
+    const body = await parseJsonBody(req);
+    if (body === null || typeof body !== "object") {
+      return apiError("Invalid JSON body", 400);
+    }
 
-  const company = await prisma.company.create({
-    data: {
-      name: body.name,
-      registrationNumber: body.registrationNumber,
-      country: body.country,
-      industry: body.industry,
-    },
-  });
+    const { name, registrationNumber, country, industry } = body as {
+      name?: unknown;
+      registrationNumber?: unknown;
+      country?: unknown;
+      industry?: unknown;
+    };
 
-  return Response.json({
-    success: true,
-    data: company,
+    if (typeof name !== "string" || !name.trim()) {
+      return apiError("name is required", 400);
+    }
+
+    const company = await prisma.company.create({
+      data: {
+        name: name.trim(),
+        registrationNumber:
+          typeof registrationNumber === "string"
+            ? registrationNumber
+            : undefined,
+        country: typeof country === "string" ? country : undefined,
+        industry: typeof industry === "string" ? industry : undefined,
+      },
+    });
+
+    return apiSuccess(company, 201);
   });
 }
