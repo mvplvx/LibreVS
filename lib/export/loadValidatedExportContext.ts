@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { librevsLog } from "@/lib/observability/librevsLog";
 import { loadPeriodIntelligence } from "@/lib/api/loadPeriodIntelligence";
 import {
   buildExportRows,
@@ -6,6 +7,7 @@ import {
   type VsmeExportRow,
   type VsmeExportValidationResult,
 } from "@/lib/vsme/exportMapping";
+import { assertSystemReadyForExport } from "@/lib/vsme/release/readinessCheck";
 
 export type ValidatedExportContext = {
   reportingPeriodId: string;
@@ -22,7 +24,12 @@ export type ValidatedExportContext = {
 
 export type ExportContextResult =
   | { ok: true; context: ValidatedExportContext }
-  | { ok: false; error: string; validation?: VsmeExportValidationResult };
+  | {
+      ok: false;
+      error: string;
+      validation?: VsmeExportValidationResult;
+      readinessBlocked?: boolean;
+    };
 
 export async function loadValidatedExportContext(
   reportingPeriodId: string,
@@ -40,6 +47,20 @@ export async function loadValidatedExportContext(
     return { ok: false, error: "Reporting period not found" };
   }
 
+  const readinessGate = await assertSystemReadyForExport();
+  if (!readinessGate.ok) {
+    librevsLog("export.readiness_blocked", {
+      reportingPeriodId,
+      systemHealth: readinessGate.readiness.systemHealth,
+      blockers: readinessGate.readiness.blockers,
+    });
+    return {
+      ok: false,
+      error: readinessGate.message,
+      readinessBlocked: true,
+    };
+  }
+
   const data = await loadPeriodIntelligence(reportingPeriodId, organizationId);
   if (!data) {
     return { ok: false, error: "Reporting period not found" };
@@ -54,6 +75,12 @@ export async function loadValidatedExportContext(
   );
 
   if (!validation.exportReady) {
+    librevsLog("export.validation_blocked", {
+      reportingPeriodId,
+      missingMandatoryCount: validation.missingFieldIds.length,
+      missingFieldIds: validation.missingFieldIds.slice(0, 20),
+      errors: validation.errors,
+    });
     return {
       ok: false,
       error: "Export validation failed",

@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import {
+  ExportAuditPanel,
+  VSME_FOCUS_FIELD_STORAGE_KEY,
+} from "@/components/vsme/ExportAuditPanel";
 import { VSMEFormRenderer } from "@/components/vsme/VSMEFormRenderer";
+import { useExportAudit } from "@/hooks/useExportAudit";
 import { useExportValidation } from "@/hooks/useExportValidation";
 import { useVsmeFieldSaveCoordinator } from "@/hooks/useVsmeFieldSaveCoordinator";
+import { PilotModeBanner } from "@/components/vsme/PilotModeBanner";
+import { VsmeOnboardingPanel } from "@/components/vsme/VsmeOnboardingPanel";
+import { VsmeQuickExport } from "@/components/vsme/VsmeQuickExport";
 import { VsmeWorkspaceSelectors } from "@/components/vsme/VsmeWorkspaceSelectors";
 import { deriveVsmeReportingUiMode } from "@/components/vsme/vsmeReportingUiMode";
 import type { VsmeFieldValue, VsmeMateriality } from "@/components/vsme/types";
@@ -51,7 +59,10 @@ export default function VsmeReportingPage() {
   const fieldValuesQuery = useVsmeFieldValuesMap(periodId);
   const materialityQuery = useVsmeMateriality(periodId);
   const coverageQuery = useVsmeCoverage(periodId);
+  const exportReady = coverageQuery.coverage?.exportReady ?? false;
   const exportValidationQuery = useExportValidation(periodId);
+  const exportAuditQuery = useExportAudit(periodId, exportReady);
+  const navigateToFieldRef = useRef<((fieldId: string) => void) | null>(null);
 
   const updateMaterialityMutation = useUpdateVsmeMateriality();
 
@@ -164,12 +175,50 @@ export default function VsmeReportingPage() {
     ? updateMaterialityMutation.variables?.fieldId ?? null
     : null;
 
+  const onboardingNeeded =
+    !loading && (!company || periods.length === 0 || !periodId);
+
   const showFormShell =
-    uiMode.showForm && schemaQuery.schema && periodId && !loading;
+    uiMode.showForm &&
+    schemaQuery.schema &&
+    periodId &&
+    !loading &&
+    !onboardingNeeded;
+
+  const registerNavigateToField = useCallback(
+    (navigate: ((fieldId: string) => void) | null) => {
+      navigateToFieldRef.current = navigate;
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!showFormShell) {
+      return;
+    }
+    let fieldId: string | null = null;
+    try {
+      fieldId = sessionStorage.getItem(VSME_FOCUS_FIELD_STORAGE_KEY);
+      if (fieldId) {
+        sessionStorage.removeItem(VSME_FOCUS_FIELD_STORAGE_KEY);
+      }
+    } catch {
+      fieldId = null;
+    }
+    if (!fieldId) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      navigateToFieldRef.current?.(fieldId!);
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [showFormShell, periodId]);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-8">
+        <PilotModeBanner />
+
         <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">VSME data entry</h1>
@@ -218,15 +267,13 @@ export default function VsmeReportingPage() {
 
         {loading ? (
           <p className="text-sm text-slate-500">Loading schema and values…</p>
-        ) : reportingState === "WORKSPACE_INITIALIZED" ? (
-          <div className="rounded-lg border border-dashed border-slate-300 bg-white px-6 py-12 text-center shadow-sm">
-            <p className="text-lg font-medium text-slate-800">
-              Create reporting context to begin
-            </p>
-            <p className="mt-2 text-sm text-slate-600">
-              Select a company and reporting period above to load the VSME workspace.
-            </p>
-          </div>
+        ) : onboardingNeeded ? (
+          <VsmeOnboardingPanel
+            companies={companies}
+            company={company}
+            periods={periods}
+            onPeriodCreated={setPeriodId}
+          />
         ) : showFormShell ? (
           <>
             {uiMode.state === "EXPORT_READY" ||
@@ -265,6 +312,20 @@ export default function VsmeReportingPage() {
               </div>
             ) : null}
 
+            {selectedPeriod && periodId ? (
+              <div className="mb-4">
+                <VsmeQuickExport
+                  periodId={periodId}
+                  year={selectedPeriod.year}
+                  exportReady={coverageQuery.coverage?.exportReady ?? false}
+                  missingRequiredCount={
+                    coverageQuery.coverage?.completeness.missingRequiredFields
+                      .length ?? 0
+                  }
+                />
+              </div>
+            ) : null}
+
             {uiMode.state === "EXPORTED" ? (
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3">
                 <p className="text-sm text-violet-900">
@@ -276,6 +337,19 @@ export default function VsmeReportingPage() {
                 >
                   Create new reporting period
                 </Link>
+              </div>
+            ) : null}
+
+            {!exportReady && periodId ? (
+              <div className="mb-4">
+                <ExportAuditPanel
+                  audit={exportAuditQuery.audit}
+                  isLoading={exportAuditQuery.isLoading}
+                  error={exportAuditQuery.error?.message ?? null}
+                  onNavigateToField={(fieldId) =>
+                    navigateToFieldRef.current?.(fieldId)
+                  }
+                />
               </div>
             ) : null}
 
@@ -300,11 +374,12 @@ export default function VsmeReportingPage() {
               onFieldSave={handleFieldSave}
               onRetryFieldSave={retryFieldSave}
               onMaterialityChange={handleMaterialityChange}
+              onRegisterNavigateToField={registerNavigateToField}
             />
           </>
         ) : (
           <p className="text-sm text-slate-500">
-            Select a reporting period to begin data entry.
+            Loading reporting workspace…
           </p>
         )}
       </div>

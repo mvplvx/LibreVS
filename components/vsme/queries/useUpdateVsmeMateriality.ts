@@ -50,6 +50,9 @@ export function useUpdateVsmeMateriality() {
         queryKey: vsmeKeys.exportValidation(variables.reportingPeriodId),
       });
       queryClient.invalidateQueries({
+        queryKey: vsmeKeys.exportAudit(variables.reportingPeriodId),
+      });
+      queryClient.invalidateQueries({
         queryKey: vsmeKeys.exportSnapshots(variables.reportingPeriodId),
       });
     },

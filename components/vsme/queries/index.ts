@@ -7,6 +7,7 @@ export { useReportingPeriods } from "./useReportingPeriods";
 export { pickActiveCompany } from "./pickActiveCompany";
 export { useVsmeWorkspace } from "./useVsmeWorkspace";
 export { useVsmeDashboard } from "./useVsmeDashboard";
+export { useCreateReportingPeriod } from "./useCreateReportingPeriod";
 export { useVsmeUiSchema } from "./useVsmeUiSchema";
 export { useVsmeFieldValues, useVsmeFieldValuesMap } from "./useVsmeFieldValues";
 export { useVsmeCoverage } from "./useVsmeCoverage";

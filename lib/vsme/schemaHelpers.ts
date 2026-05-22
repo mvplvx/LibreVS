@@ -1,4 +1,5 @@
 import type {
+  EfragReference,
   VsmeFieldDef,
   VsmeSectionDef,
   VsmeSubsectionDef,
@@ -20,6 +21,7 @@ export function field(
     unit?: string;
     description?: string;
     efragParagraph?: string;
+    efragReference?: EfragReference;
   }
 ): VsmeFieldDef {
   return {
@@ -32,6 +34,7 @@ export function field(
     unit: options?.unit,
     description: options?.description ?? label,
     efragParagraph: options?.efragParagraph,
+    efragReference: options?.efragReference,
   };
 }
 

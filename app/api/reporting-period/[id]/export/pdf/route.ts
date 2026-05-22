@@ -3,6 +3,7 @@ import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
 import { apiError } from "@/lib/api/response";
 import { loadValidatedExportContext } from "@/lib/export/loadValidatedExportContext";
 import { writeVsmePdf } from "@/lib/export/pdf/writeVsmePdf";
+import { librevsLog } from "@/lib/observability/librevsLog";
 
 /** Deterministic VSME PDF summary (strict V2 rows, exportReady required). */
 export async function GET(
@@ -44,6 +45,13 @@ export async function GET(
     });
 
     const filename = `librevs-vsme-${context.year}.pdf`;
+
+    librevsLog("export.success", {
+      reportingPeriodId,
+      format: "pdf",
+      rowCount: context.rows.length,
+      year: context.year,
+    });
 
     return new Response(Buffer.from(pdfBytes), {
       status: 200,

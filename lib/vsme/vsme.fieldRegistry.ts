@@ -1,5 +1,7 @@
 import { VSME_SCHEMA } from "./vsme.schema";
 import { buildFieldId, buildFieldPath } from "./buildFieldPath";
+import { resolveEfragReference } from "./efragReference";
+import type { EfragReference } from "./vsme.types";
 import type { VsmeApplicabilityRule, VsmeFieldDef, VsmeModule } from "./vsme.types";
 
 /** Static canonical field metadata (employee-count rules applied at request time). */
@@ -13,6 +15,7 @@ export type VsmeRegistryEntry = {
   label: string;
   description: string;
   efragParagraph?: string;
+  efragReference?: EfragReference;
   unit?: string;
   sectionId: string;
   sectionCode: string;
@@ -44,6 +47,7 @@ function buildRegistry(): Record<string, VsmeRegistryEntry> {
           label: field.label,
           description: field.description,
           efragParagraph: field.efragParagraph,
+          efragReference: resolveEfragReference(field, section),
           unit: field.unit,
           sectionId: section.id,
           sectionCode: section.code,

@@ -12,6 +12,7 @@ export function useVsmeUiSchema(
 ) {
   const query = useQuery({
     queryKey: vsmeKeys.uiSchema(employeeCount, reportingPeriodId),
+    enabled: reportingPeriodId.length > 0,
     queryFn: async () => {
       const params = new URLSearchParams({
         employeeCount: String(Math.max(0, Math.floor(employeeCount))),

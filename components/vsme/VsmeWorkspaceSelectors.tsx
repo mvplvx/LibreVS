@@ -48,13 +48,26 @@ export function VsmeWorkspaceSelectors({
             )}
             {showScopeHint ? (
               <p className="mt-1 text-xs text-slate-500">
-                Employees: {employeeCount} (C-module scope obligation)
+                {company.employeeCount != null ? (
+                  <>
+                    Employees: {employeeCount}
+                    {employeeCount >= 500
+                      ? " · C module in mandatory scope"
+                      : " · C module optional"}
+                  </>
+                ) : (
+                  <span className="text-amber-700">
+                    Employee count not set — B module only until configured
+                  </span>
+                )}
               </p>
             ) : company.employeeCount != null ? (
               <p className="mt-1 text-xs text-slate-500">
                 Employees: {company.employeeCount}
               </p>
-            ) : null}
+            ) : (
+              <p className="mt-1 text-xs text-amber-700">Employee count not set</p>
+            )}
           </>
         ) : (
           <p className="mt-1 text-sm text-slate-500">No company</p>

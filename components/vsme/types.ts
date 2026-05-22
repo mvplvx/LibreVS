@@ -2,6 +2,13 @@
 
 export type VsmeMateriality = "material" | "non_material";
 
+/** Read-only EFRAG paragraph traceability (UI only). */
+export type EfragReference = {
+  paragraph: string;
+  section: string;
+  url: string;
+};
+
 export type { ReportingState as VsmeReportingState } from "@/lib/vsme/getReportingState";
 
 export type VsmeCompleteness = {
@@ -36,6 +43,7 @@ export type VsmeUiField = {
   excelSheet: string;
   unit?: string;
   efragParagraph?: string;
+  efragReference?: EfragReference;
   applicability: VsmeUiFieldApplicability;
 };
 

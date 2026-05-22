@@ -19,6 +19,13 @@ export type VsmeExcelSheet =
   | "Social"
   | "Governance";
 
+/** Read-only EFRAG paragraph traceability (UI/documentation only). */
+export type EfragReference = {
+  paragraph: string;
+  section: string;
+  url: string;
+};
+
 export type VsmeFieldDef = {
   name: string;
   type: VsmeFieldType;
@@ -31,6 +38,8 @@ export type VsmeFieldDef = {
   description: string;
   /** VSME standard paragraph reference, e.g. "29", "24(e)(v)". */
   efragParagraph?: string;
+  /** Structured EFRAG traceability for UI (optional; may be derived from efragParagraph). */
+  efragReference?: EfragReference;
   unit?: string;
 };
 

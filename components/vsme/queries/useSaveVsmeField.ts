@@ -54,6 +54,9 @@ export function useSaveVsmeField() {
       queryClient.invalidateQueries({
         queryKey: vsmeKeys.exportValidation(variables.reportingPeriodId),
       });
+      queryClient.invalidateQueries({
+        queryKey: vsmeKeys.exportAudit(variables.reportingPeriodId),
+      });
     },
   });
 }

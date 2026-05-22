@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ExportCenter } from "@/components/export/ExportCenter";
+import { PilotModeBanner } from "@/components/vsme/PilotModeBanner";
 import {
   REPORTING_STATE_BADGE_CLASS,
   REPORTING_STATE_DESCRIPTIONS,
@@ -40,6 +41,8 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-8">
+        <PilotModeBanner />
+
         <header className="mb-8">
           <h1 className="text-2xl font-semibold">LibreVS VSME Reporting</h1>
           <p className="mt-1 text-sm text-slate-600">

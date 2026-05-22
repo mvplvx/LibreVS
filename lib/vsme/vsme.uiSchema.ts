@@ -1,3 +1,4 @@
+import { resolveEfragReference } from "./efragReference";
 import { VSME_SCHEMA } from "./vsme.schema";
 import { VSME_SCHEMA_VERSION } from "./schemaVersion";
 import {
@@ -10,7 +11,12 @@ import { DEFAULT_MATERIALITY } from "./materiality";
 import type { VsmeMateriality } from "./materiality";
 import { buildFieldId, buildFieldPath } from "./buildFieldPath";
 import { isUiSectionVisible } from "./sectionUiVisibility";
-import type { VsmeApplicabilityRule, VsmeModule, VsmeWorkflowLabel } from "./vsme.types";
+import type {
+  EfragReference,
+  VsmeApplicabilityRule,
+  VsmeModule,
+  VsmeWorkflowLabel,
+} from "./vsme.types";
 
 export type VsmeUiFieldApplicability = {
   module: VsmeModule;
@@ -34,6 +40,7 @@ export type VsmeUiField = {
   excelSheet: string;
   unit?: string;
   efragParagraph?: string;
+  efragReference?: EfragReference;
   applicability: VsmeUiFieldApplicability;
 };
 
@@ -110,6 +117,7 @@ export function buildVsmeUiSchema(
             excelSheet: field.excelSheet,
             unit: field.unit,
             efragParagraph: field.efragParagraph,
+            efragReference: resolveEfragReference(field, section),
             applicability: {
               module: section.module,
               applicabilityRule: section.applicabilityRule,

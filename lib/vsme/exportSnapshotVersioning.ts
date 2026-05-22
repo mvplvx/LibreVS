@@ -3,7 +3,16 @@ import { prisma } from "@/lib/db/prisma";
 import type { loadPeriodIntelligence } from "@/lib/api/loadPeriodIntelligence";
 import type { ExportValidationResult } from "./validateEfragExport";
 import type { VsmeExportRow, VsmeExportValidationResult } from "./exportMapping";
+import type { SystemHealth } from "./release/readinessCheck";
 import { VSME_SCHEMA_VERSION } from "./schemaVersion";
+
+/** Captured at export time — observability only. */
+export type ExportReadinessSnapshot = {
+  exportReady: boolean;
+  missingMandatoryFields: number;
+  systemHealth: SystemHealth;
+  capturedAt: string;
+};
 
 export type ExportSnapshotAuditTrail = {
   schemaVersion: string;
@@ -33,6 +42,7 @@ export type ExportSnapshotStatePayload = {
   valuesByFieldId: Record<string, string>;
   completeness: unknown;
   reportingState: string;
+  readinessSnapshot: ExportReadinessSnapshot;
 };
 
 export type ExportSnapshotExportPayload = {
@@ -102,6 +112,7 @@ export function buildExportSnapshotPayloads(input: {
   rows: VsmeExportRow[];
   exportValidation: VsmeExportValidationResult;
   efragValidation: ExportValidationResult;
+  readinessSnapshot: ExportReadinessSnapshot;
   userId: string;
   organizationId: string;
   previousSnapshotId: string | null;
@@ -143,6 +154,7 @@ export function buildExportSnapshotPayloads(input: {
     valuesByFieldId,
     completeness: data.vsme.completeness,
     reportingState: data.reportingState,
+    readinessSnapshot: input.readinessSnapshot,
   };
 
   return {

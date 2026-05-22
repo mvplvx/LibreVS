@@ -2,6 +2,7 @@
 
 /** Presentational only — parents use React Query hooks; no apiGet/apiPost here. */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getRegistryEntry } from "@/lib/vsme/vsme.fieldRegistry";
 import type { ReportingState } from "@/lib/vsme/getReportingState";
 import { isModuleCInReportingScope } from "@/lib/vsme/moduleScope";
 import type { FieldSaveState } from "./fieldSaveState";
@@ -44,6 +45,7 @@ type VSMEFormRendererProps = {
   onFieldSave: (fieldId: string, value: string, unit: string | null) => void;
   onRetryFieldSave: (fieldId: string) => void;
   onMaterialityChange: (fieldId: string, materiality: VsmeMateriality) => void;
+  onRegisterNavigateToField?: (navigate: ((fieldId: string) => void) | null) => void;
 };
 
 export function VSMEFormRenderer({
@@ -65,6 +67,7 @@ export function VSMEFormRenderer({
   onFieldSave,
   onRetryFieldSave,
   onMaterialityChange,
+  onRegisterNavigateToField,
 }: VSMEFormRendererProps) {
   const sections = useMemo(
     () => schema.sections.filter((s) => s.applicability.visible),
@@ -226,6 +229,44 @@ export function VSMEFormRenderer({
     },
     [mountSection, uiMode.navEnabled]
   );
+
+  const scrollToField = useCallback(
+    (fieldId: string) => {
+      const entry = getRegistryEntry(fieldId);
+      if (!entry) {
+        return;
+      }
+      scrollToSection(entry.sectionCode);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const el = document.querySelector(
+            `[data-field-id="${CSS.escape(fieldId)}"]`
+          ) as HTMLElement | null;
+          if (!el) {
+            return;
+          }
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("ring-2", "ring-amber-400", "ring-offset-2");
+          const focusable = el.querySelector<HTMLElement>(
+            "input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])"
+          );
+          focusable?.focus({ preventScroll: true });
+          window.setTimeout(() => {
+            el.classList.remove("ring-2", "ring-amber-400", "ring-offset-2");
+          }, 2400);
+        });
+      });
+    },
+    [scrollToSection]
+  );
+
+  useEffect(() => {
+    if (!onRegisterNavigateToField) {
+      return;
+    }
+    onRegisterNavigateToField(scrollToField);
+    return () => onRegisterNavigateToField(null);
+  }, [onRegisterNavigateToField, scrollToField]);
 
   const valueInputsDisabled = uiMode.fieldsReadOnly;
   const materialityDisabled = !uiMode.materialityEditable;

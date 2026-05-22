@@ -12,10 +12,13 @@ import {
   ExportSnapshotLockedError,
   getLatestExportSnapshot,
 } from "@/lib/vsme/exportSnapshotVersioning";
+import { assertSystemReadyForExport } from "@/lib/vsme/release/readinessCheck";
+import { pilotTelemetryLog } from "@/lib/vsme/release/pilotMode";
 import {
   buildEfragExportSnapshot,
   validateEfragExport,
 } from "@/lib/vsme/validateEfragExport";
+import { librevsLog } from "@/lib/observability/librevsLog";
 
 /** EFRAG VSME export rows + validation; persists immutable versioned snapshot. */
 export async function GET(
@@ -37,6 +40,27 @@ export async function GET(
       );
       if (!data) {
         return apiError("Reporting period not found", 404);
+      }
+
+      const readinessGate = await assertSystemReadyForExport();
+      if (!readinessGate.ok) {
+        librevsLog("export.readiness_blocked", {
+          reportingPeriodId,
+          systemHealth: readinessGate.readiness.systemHealth,
+          blockers: readinessGate.readiness.blockers,
+        });
+        pilotTelemetryLog("export.readiness_blocked", {
+          reportingPeriodId,
+          systemHealth: readinessGate.readiness.systemHealth,
+        });
+        return Response.json(
+          {
+            success: false,
+            error: readinessGate.message,
+            data: { readiness: readinessGate.readiness },
+          },
+          { status: 503 }
+        );
       }
 
       const { vsme } = data;
@@ -94,6 +118,13 @@ export async function GET(
         rows,
         exportValidation: validation,
         efragValidation,
+        readinessSnapshot: {
+          exportReady: validation.exportReady,
+          missingMandatoryFields:
+            vsme.completeness.missingRequiredFields.length,
+          systemHealth: readinessGate.readiness.systemHealth,
+          capturedAt: new Date().toISOString(),
+        },
         userId,
         organizationId,
         previousSnapshotId: previous?.id ?? null,

@@ -2,7 +2,12 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
+import {
+  ExportAuditPanel,
+  VSME_FOCUS_FIELD_STORAGE_KEY,
+} from "@/components/vsme/ExportAuditPanel";
 import { ExportIntegrityIndicator } from "@/components/vsme/ExportIntegrityIndicator";
+import { useExportAudit } from "@/hooks/useExportAudit";
 import { REPORTING_STATE_LABELS } from "@/components/vsme/reportingStateUi";
 import { VsmeWorkspaceSelectors } from "@/components/vsme/VsmeWorkspaceSelectors";
 import {
@@ -27,6 +32,10 @@ export default function ExportReviewPage() {
   } = workspace;
 
   const exportQuery = useExportValidation(periodId);
+  const exportAuditQuery = useExportAudit(
+    periodId,
+    exportQuery.exportReady
+  );
   const snapshotsQuery = useExportSnapshots(periodId);
   const finalizeMutation = useFinalizeExportSnapshot(periodId);
   const validation = exportQuery.validation;
@@ -159,6 +168,25 @@ export default function ExportReviewPage() {
                 </div>
               ) : null}
             </section>
+
+            {!exportQuery.exportReady ? (
+              <ExportAuditPanel
+                audit={exportAuditQuery.audit}
+                isLoading={exportAuditQuery.isLoading}
+                error={exportAuditQuery.error?.message ?? null}
+                onNavigateAwayToField={(fieldId) => {
+                  try {
+                    sessionStorage.setItem(
+                      VSME_FOCUS_FIELD_STORAGE_KEY,
+                      fieldId
+                    );
+                  } catch {
+                    /* ignore */
+                  }
+                  window.location.href = "/vsme";
+                }}
+              />
+            ) : null}
 
             <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
               <h2 className="mb-4 text-lg font-medium">Section breakdown</h2>

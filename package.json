@@ -11,7 +11,9 @@
     "db:migrate-vsme": "npx tsx scripts/migrate-vsme-v1-to-v2.ts",
     "db:migrate-vsme:dry-run": "npx tsx scripts/migrate-vsme-v1-to-v2.ts --dry-run",
     "vsme:contract-test": "npx tsx scripts/vsme-contract-test.ts",
-    "export:regression-test": "npx tsx scripts/export-regression-test.ts"
+    "export:regression-test": "npx tsx scripts/export-regression-test.ts",
+    "seed:test": "npx tsx scripts/seed/test-environment.ts",
+    "phase6:smoke": "npx tsx scripts/phase6-smoke-check.ts"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

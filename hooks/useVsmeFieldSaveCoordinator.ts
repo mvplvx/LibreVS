@@ -10,6 +10,7 @@ import {
 import { getFieldMaterialityState } from "@/components/vsme/fieldMaterialityState";
 import { useSaveVsmeField } from "@/components/vsme/queries";
 import { VSME_FIELD_REGISTRY } from "@/lib/vsme/vsme.fieldRegistry";
+import { librevsLog } from "@/lib/observability/librevsLog";
 import { validateFieldValue } from "@/lib/vsme/validateFieldValue";
 
 const AUTOSAVE_DEBOUNCE_MS = 1200;
@@ -241,8 +242,13 @@ export function useVsmeFieldSaveCoordinator(options: {
         }));
         setFieldSaveState(fieldId, "saved");
         scheduleSavedFade(fieldId);
-      } catch {
+      } catch (err) {
         setFieldSaveState(fieldId, "error");
+        librevsLog("field.save.error", {
+          reportingPeriodId: periodId,
+          fieldId,
+          message: err instanceof Error ? err.message : "save failed",
+        });
       }
     },
     [

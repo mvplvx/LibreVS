@@ -86,6 +86,26 @@ export type {
   ExportValidationResult,
 } from "./validateEfragExport";
 export { buildExportPreview, buildExportPreviewFromValues } from "./buildExportPreview";
+export { buildExportAudit } from "./export/exportAudit";
+export {
+  runReadinessCheck,
+  assertSystemReadyForExport,
+} from "./release/readinessCheck";
+export type {
+  ReadinessCheckResult,
+  SystemHealth,
+} from "./release/readinessCheck";
+export {
+  isPilotModeEnabled,
+  isReadinessEndpointExposed,
+  pilotTelemetryLog,
+} from "./release/pilotMode";
+export type {
+  ExportAuditResult,
+  ExportBlockingField,
+  ExportAuditSectionSummary,
+  ExportRequirementReasonCode,
+} from "./export/exportAudit";
 export {
   assertPeriodExportNotLocked,
   createImmutableExportSnapshot,
@@ -97,6 +117,7 @@ export {
 export type {
   ExportSnapshotAuditTrail,
   ExportSnapshotStatePayload,
+  ExportReadinessSnapshot,
 } from "./exportSnapshotVersioning";
 export type {
   ExportPreview,
@@ -113,6 +134,11 @@ export {
 } from "./reportingState";
 export type { VsmeReportingState as VsmeLegacyReportingState } from "./reportingState";
 export { buildVsmePeriodSnapshot } from "./periodSnapshot";
+export {
+  EFRAG_VSME_INTERACTIVE_URL,
+  resolveEfragReference,
+} from "./efragReference";
+export type { EfragReference } from "./vsme.types";
 export type {
   VsmeSchema,
   VsmeSectionDef,

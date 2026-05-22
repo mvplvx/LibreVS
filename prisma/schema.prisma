@@ -14,6 +14,7 @@ model Organization {
 
   users     User[]
   companies Company[]
+  feedback  VsmeFeedback[]
 }
 
 model User {
@@ -127,3 +128,20 @@ model SustainabilityDataPoint {
   @@unique([reportingPeriodId, fieldId])
 }
 
+/** Phase 6 — in-app feedback capture (no external integrations). */
+model VsmeFeedback {
+  id String @id @default(cuid())
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  reportingPeriodId String?
+  fieldId           String?
+  section           String?
+  message           String
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([createdAt])
+}

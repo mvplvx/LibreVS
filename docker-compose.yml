@@ -1,8 +1,8 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
     container_name: librevs-db
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: librevs
       POSTGRES_PASSWORD: librevs
@@ -11,6 +11,30 @@ services:
       - "5432:5432"
     volumes:
       - librevs_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U librevs -d librevs"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: librevs-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://librevs:librevs@db:5432/librevs?schema=public
+      LIBREVS_LOG: "1"
+      LIBREVS_SEED_TEST_ENV: "1"
+      LIBREVS_PILOT_MODE: "1"
+      NEXT_PUBLIC_LIBREVS_PILOT_MODE: "true"
+      NODE_ENV: production
 
 volumes:
   librevs_pgdata:
