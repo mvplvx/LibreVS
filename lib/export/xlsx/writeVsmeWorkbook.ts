@@ -72,7 +72,7 @@ export function writeVsmeWorkbook(
   const manifestJson = serializeExportManifest(exportManifest);
   wb.Props = {
     Title: "LibreVS VSME Export",
-    Subject: `VSME ${input.schemaVersion}`,
+    Subject: `VSME ${input.schemaVersion} · ${exportManifest.registryHash.slice(0, 12)}`,
     Author: "LibreVS",
     Comments: manifestJson,
   };

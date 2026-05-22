@@ -2,7 +2,7 @@ import { getUser } from "@/lib/auth";
 import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
 import { apiError } from "@/lib/api/response";
 import { loadValidatedExportContext } from "@/lib/export/loadValidatedExportContext";
-import { writeVsmePdf } from "@/lib/export/pdf/writeVsmePdf";
+import { exportVsmeToPdf } from "@/lib/export/pdfExporter";
 import { librevsLog } from "@/lib/observability/librevsLog";
 
 /** Deterministic VSME PDF summary (strict V2 rows, exportReady required). */
@@ -32,7 +32,7 @@ export async function GET(
 
     const { context } = result;
     const exportedAt = new Date().toISOString();
-    const pdfBytes = await writeVsmePdf({
+    const pdfBytes = await exportVsmeToPdf({
       companyName: context.companyName,
       reportingPeriodId: context.reportingPeriodId,
       year: context.year,

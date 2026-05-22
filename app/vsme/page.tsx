@@ -10,7 +10,9 @@ import { VSMEFormRenderer } from "@/components/vsme/VSMEFormRenderer";
 import { useExportAudit } from "@/hooks/useExportAudit";
 import { useExportValidation } from "@/hooks/useExportValidation";
 import { useVsmeFieldSaveCoordinator } from "@/hooks/useVsmeFieldSaveCoordinator";
+import { SystemHealthIndicator } from "@/components/system/SystemHealthIndicator";
 import { PilotModeBanner } from "@/components/vsme/PilotModeBanner";
+import { VsmeWorkspaceFallback } from "@/components/vsme/VsmeWorkspaceFallback";
 import { VsmeOnboardingPanel } from "@/components/vsme/VsmeOnboardingPanel";
 import { VsmeQuickExport } from "@/components/vsme/VsmeQuickExport";
 import { VsmeWorkspaceSelectors } from "@/components/vsme/VsmeWorkspaceSelectors";
@@ -226,6 +228,8 @@ export default function VsmeReportingPage() {
               Reporting lifecycle · module scope from employee count
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <SystemHealthIndicator />
           <nav className="flex gap-3 text-sm">
             <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">
               Dashboard
@@ -234,6 +238,7 @@ export default function VsmeReportingPage() {
               Home
             </Link>
           </nav>
+          </div>
         </header>
 
         {error ? (
@@ -268,12 +273,20 @@ export default function VsmeReportingPage() {
         {loading ? (
           <p className="text-sm text-slate-500">Loading schema and values…</p>
         ) : onboardingNeeded ? (
+          <>
+          <VsmeWorkspaceFallback
+            companies={companies}
+            company={company}
+            periods={periods}
+            onCreated={setPeriodId}
+          />
           <VsmeOnboardingPanel
             companies={companies}
             company={company}
             periods={periods}
             onPeriodCreated={setPeriodId}
           />
+          </>
         ) : showFormShell ? (
           <>
             {uiMode.state === "EXPORT_READY" ||

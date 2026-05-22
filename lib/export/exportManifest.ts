@@ -1,3 +1,5 @@
+import { computeRegistryHash } from "@/lib/vsme/registryHash";
+
 export type ExportArtifactFormat = "xlsx" | "pdf";
 
 export type ExportManifest = {
@@ -7,6 +9,7 @@ export type ExportManifest = {
   exportedAt: string;
   exportedFieldCount: number;
   format: ExportArtifactFormat;
+  registryHash: string;
 };
 
 export function createExportManifest(input: {
@@ -16,6 +19,7 @@ export function createExportManifest(input: {
   format: ExportArtifactFormat;
   exportedAt?: string;
   exportId?: string;
+  registryHash?: string;
 }): ExportManifest {
   return {
     exportId: input.exportId ?? crypto.randomUUID(),
@@ -24,6 +28,7 @@ export function createExportManifest(input: {
     exportedAt: input.exportedAt ?? new Date().toISOString(),
     exportedFieldCount: input.exportedFieldCount,
     format: input.format,
+    registryHash: input.registryHash ?? computeRegistryHash(),
   };
 }
 
@@ -40,7 +45,8 @@ export function parseExportManifest(serialized: string): ExportManifest | null {
       typeof parsed.schemaVersion === "string" &&
       typeof parsed.exportedAt === "string" &&
       typeof parsed.exportedFieldCount === "number" &&
-      (parsed.format === "xlsx" || parsed.format === "pdf")
+      (parsed.format === "xlsx" || parsed.format === "pdf") &&
+      typeof parsed.registryHash === "string"
     ) {
       return parsed;
     }

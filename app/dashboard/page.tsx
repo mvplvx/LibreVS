@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { ExportCenter } from "@/components/export/ExportCenter";
+import { SystemHealthIndicator } from "@/components/system/SystemHealthIndicator";
 import { PilotModeBanner } from "@/components/vsme/PilotModeBanner";
+import { VsmeWorkspaceFallback } from "@/components/vsme/VsmeWorkspaceFallback";
 import {
   REPORTING_STATE_BADGE_CLASS,
   REPORTING_STATE_DESCRIPTIONS,
@@ -43,17 +45,20 @@ export default function DashboardPage() {
       <div className="mx-auto max-w-7xl px-4 py-8">
         <PilotModeBanner />
 
-        <header className="mb-8">
-          <h1 className="text-2xl font-semibold">LibreVS VSME Reporting</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Schema-driven local reporting (EFRAG-aligned, single company)
-          </p>
-          <a
-            href="/vsme"
-            className="mt-2 inline-block text-sm font-medium text-slate-800 underline"
-          >
-            Open VSME data entry →
-          </a>
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">LibreVS VSME Reporting</h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Schema-driven local reporting (EFRAG-aligned, single company)
+            </p>
+            <a
+              href="/vsme"
+              className="mt-2 inline-block text-sm font-medium text-slate-800 underline"
+            >
+              Open VSME data entry →
+            </a>
+          </div>
+          <SystemHealthIndicator />
         </header>
 
         {error && (
@@ -78,6 +83,13 @@ export default function DashboardPage() {
           <div className="col-span-12 lg:col-span-9 space-y-6">
             {loading ? (
               <p className="text-sm text-slate-500">Loading…</p>
+            ) : !dashboard ? (
+              <VsmeWorkspaceFallback
+                companies={companies}
+                company={company}
+                periods={periods}
+                onCreated={setPeriodId}
+              />
             ) : dashboard ? (
               <>
                 <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">

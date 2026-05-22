@@ -35,6 +35,20 @@ async function main(): Promise<void> {
   }
   ok("/vsme loads");
 
+  const healthRes = await fetchJson<{
+    status: string;
+    registry: { fieldCount: number };
+  }>("/api/system-health");
+  if (healthRes.status !== 200 || !healthRes.body.success) {
+    fail(`system-health failed: ${healthRes.status}`);
+  }
+  if (healthRes.body.data?.registry.fieldCount !== VSME_FIELD_COUNT) {
+    fail(
+      `system-health fieldCount ${healthRes.body.data?.registry.fieldCount} !== ${VSME_FIELD_COUNT}`
+    );
+  }
+  ok(`system-health (${healthRes.body.data?.status})`);
+
   const schemaRes = await fetchJson<{ sections: unknown[] }>(
     "/api/vsme/ui-schema?employeeCount=120"
   );

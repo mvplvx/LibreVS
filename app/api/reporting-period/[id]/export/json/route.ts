@@ -1,11 +1,14 @@
 import { getUser } from "@/lib/auth";
 import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
-import { apiError } from "@/lib/api/response";
+import { apiError, apiSuccess } from "@/lib/api/response";
+import {
+  buildCanonicalExportDataset,
+  serializeExportDatasetJson,
+} from "@/lib/export/exportDataset";
 import { loadValidatedExportContext } from "@/lib/export/loadValidatedExportContext";
-import { exportVsmeToXlsxBuffer } from "@/lib/export/xlsxExporter";
 import { librevsLog } from "@/lib/observability/librevsLog";
 
-/** Deterministic VSME XLSX artifact (strict V2 rows, exportReady required). */
+/** Canonical JSON export — same row set as XLSX/PDF serialization. */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> | { id: string } }
@@ -20,7 +23,7 @@ export async function GET(
 
     librevsLog("export.attempted", {
       reportingPeriodId,
-      format: "xlsx",
+      format: "json",
     });
 
     const result = await loadValidatedExportContext(
@@ -29,11 +32,6 @@ export async function GET(
     );
 
     if (!result.ok) {
-      librevsLog("export.failure", {
-        reportingPeriodId,
-        format: "xlsx",
-        reason: result.error,
-      });
       return Response.json(
         { success: false, error: result.error },
         { status: 400 }
@@ -41,27 +39,23 @@ export async function GET(
     }
 
     const { context } = result;
-    const buffer = exportVsmeToXlsxBuffer({
-      reportingPeriodId: context.reportingPeriodId,
-      rows: context.rows,
-      schemaVersion: context.schemaVersion,
-    });
-
-    const filename = `librevs-vsme-${context.year}.xlsx`;
+    const dataset = buildCanonicalExportDataset(
+      context.rows,
+      context.schemaVersion
+    );
 
     librevsLog("export.success", {
       reportingPeriodId,
-      format: "xlsx",
-      rowCount: context.rows.length,
+      format: "json",
+      rowCount: dataset.metadata.rowCount,
       year: context.year,
     });
 
-    return new Response(new Uint8Array(buffer), {
+    return new Response(serializeExportDatasetJson(dataset), {
       status: 200,
       headers: {
-        "Content-Type":
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Type": "application/json",
+        "Content-Disposition": `attachment; filename="librevs-vsme-${context.year}.json"`,
         "Cache-Control": "no-store",
       },
     });

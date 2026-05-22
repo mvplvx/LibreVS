@@ -1,12 +1,27 @@
 import { Prisma } from "@prisma/client";
 import { apiError } from "@/lib/api/response";
 
+function isDatabaseUnavailable(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientInitializationError ||
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P1001" || error.code === "P1002" || error.code === "P1017"))
+  );
+}
+
 export async function withApiHandler(
   handler: () => Promise<Response>
 ): Promise<Response> {
   try {
     return await handler();
   } catch (error) {
+    if (isDatabaseUnavailable(error)) {
+      return apiError(
+        "Database is unavailable. Run migrations and seed, then retry.",
+        503
+      );
+    }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       switch (error.code) {
         case "P2002":

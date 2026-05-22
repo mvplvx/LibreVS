@@ -87,6 +87,7 @@ export async function writeVsmePdf(
   drawLine(`Reporting year: ${input.year}`);
   drawLine(`Schema version: ${input.schemaVersion}`);
   drawLine(`Exported at: ${input.exportedAt}`);
+  drawLine(`Registry hash: ${exportManifest.registryHash}`);
   drawLine(`Export ID: ${exportManifest.exportId}`);
   y -= 6;
 
