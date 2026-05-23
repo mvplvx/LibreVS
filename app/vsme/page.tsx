@@ -77,7 +77,9 @@ export default function VsmeReportingPage() {
 
   useEffect(() => {
     if (!periodId) {
-      setLocalValues((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+      setLocalValues((prev) =>
+        Object.keys(prev).length === 0 ? prev : ({} as Record<string, VsmeFieldValue>)
+      );
       return;
     }
     if (!fieldValuesQuery.isFetching) {

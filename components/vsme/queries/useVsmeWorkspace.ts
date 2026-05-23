@@ -6,12 +6,15 @@ import { useReportingPeriods } from "./useReportingPeriods";
 import { pickActiveCompany } from "./pickActiveCompany";
 import type { CompanyRecord, ReportingPeriodRecord } from "./types";
 
+const EMPTY_COMPANIES: CompanyRecord[] = [];
+const EMPTY_PERIODS: ReportingPeriodRecord[] = [];
+
 export function useVsmeWorkspace() {
   const companiesQuery = useCompanies();
   const periodsQuery = useReportingPeriods();
 
-  const companies = companiesQuery.data ?? [];
-  const allPeriods = periodsQuery.data ?? [];
+  const companies = companiesQuery.data ?? EMPTY_COMPANIES;
+  const allPeriods = periodsQuery.data ?? EMPTY_PERIODS;
 
   const suggestedCompany = useMemo(
     () => pickActiveCompany(companies, allPeriods),
