@@ -12,10 +12,12 @@ export type WorkspaceSaveStatus = {
   dirtyCount: number;
   errorCount: number;
   hasPendingWork: boolean;
+  lastSavedAt: string | null;
 };
 
 export function deriveWorkspaceSaveStatus(
-  saveStateByFieldId: Record<string, FieldSaveState>
+  saveStateByFieldId: Record<string, FieldSaveState>,
+  lastSavedAt: string | null = null
 ): WorkspaceSaveStatus {
   let savingCount = 0;
   let dirtyCount = 0;
@@ -41,6 +43,7 @@ export function deriveWorkspaceSaveStatus(
       dirtyCount,
       errorCount,
       hasPendingWork: true,
+      lastSavedAt,
     };
   }
 
@@ -52,6 +55,7 @@ export function deriveWorkspaceSaveStatus(
       dirtyCount,
       errorCount,
       hasPendingWork: dirtyCount > 0,
+      lastSavedAt,
     };
   }
 
@@ -63,17 +67,34 @@ export function deriveWorkspaceSaveStatus(
       dirtyCount,
       errorCount,
       hasPendingWork: true,
+      lastSavedAt,
     };
   }
 
   return {
-    message: "All changes saved",
+    message: lastSavedAt
+      ? `All changes saved · ${formatSavedTime(lastSavedAt)}`
+      : "All changes saved",
     tone: "neutral",
     savingCount: 0,
     dirtyCount: 0,
     errorCount: 0,
     hasPendingWork: false,
+    lastSavedAt,
   };
+}
+
+function formatSavedTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "numeric",
+      month: "short",
+    });
+  } catch {
+    return iso;
+  }
 }
 
 export function fieldSaveBlocksUnload(

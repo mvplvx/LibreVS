@@ -42,7 +42,12 @@ function manifestFromDataset(
 
 /** Audit-grade XLSX — canonical dataset identical to JSON export serialization. */
 export function exportVsmeToXlsx(input: VsmeExportInput) {
-  const dataset = buildCanonicalExportDataset(input.rows, input.schemaVersion);
+  const dataset = buildCanonicalExportDataset(
+    input.rows,
+    input.schemaVersion,
+    undefined,
+    input.reportingCurrency
+  );
   return writeVsmeWorkbook(
     { ...input, rows: rowsFromDataset(dataset) },
     manifestFromDataset(input, dataset)
@@ -50,7 +55,12 @@ export function exportVsmeToXlsx(input: VsmeExportInput) {
 }
 
 export function exportVsmeToXlsxBuffer(input: VsmeExportInput): Buffer {
-  const dataset = buildCanonicalExportDataset(input.rows, input.schemaVersion);
+  const dataset = buildCanonicalExportDataset(
+    input.rows,
+    input.schemaVersion,
+    undefined,
+    input.reportingCurrency
+  );
   const wb = writeVsmeWorkbook(
     { ...input, rows: rowsFromDataset(dataset) },
     manifestFromDataset(input, dataset)

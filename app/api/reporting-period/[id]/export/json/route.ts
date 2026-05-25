@@ -41,7 +41,9 @@ export async function GET(
     const { context } = result;
     const dataset = buildCanonicalExportDataset(
       context.rows,
-      context.schemaVersion
+      context.schemaVersion,
+      new Date().toISOString(),
+      context.reportingCurrency
     );
 
     librevsLog("export.success", {

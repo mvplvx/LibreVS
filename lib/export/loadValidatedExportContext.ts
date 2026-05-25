@@ -8,6 +8,7 @@ import {
   type VsmeExportValidationResult,
 } from "@/lib/vsme/exportMapping";
 import { assertSystemReadyForExport } from "@/lib/vsme/release/readinessCheck";
+import { parseReportingCurrency } from "@/lib/vsme/currency";
 
 export type ValidatedExportContext = {
   reportingPeriodId: string;
@@ -16,6 +17,7 @@ export type ValidatedExportContext = {
   year: number;
   schemaVersion: string;
   employeeCount: number;
+  reportingCurrency: string;
   rows: VsmeExportRow[];
   validation: VsmeExportValidationResult;
   mandatoryCoveragePercentage: number;
@@ -40,7 +42,7 @@ export async function loadValidatedExportContext(
       id: reportingPeriodId,
       company: { organizationId },
     },
-    include: { company: { select: { name: true } } },
+    include: { company: { select: { name: true, currency: true } } },
   });
 
   if (!period) {
@@ -109,6 +111,7 @@ export async function loadValidatedExportContext(
       year: data.year,
       schemaVersion: data.schemaVersion,
       employeeCount: data.employeeCount,
+      reportingCurrency: parseReportingCurrency(period.company.currency),
       rows,
       validation,
       mandatoryCoveragePercentage: vsme.requiredCoveragePercentage,

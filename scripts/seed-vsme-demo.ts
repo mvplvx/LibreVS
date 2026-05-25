@@ -49,6 +49,7 @@ export async function seedVsmeDemo(
       name: "LibreVS Demo Company",
       employeeCount: 120,
       country: "SE",
+      currency: "SEK",
       organizationId: org.id,
     },
     create: {
@@ -56,6 +57,7 @@ export async function seedVsmeDemo(
       name: "LibreVS Demo Company",
       employeeCount: 120,
       country: "SE",
+      currency: "SEK",
       organizationId: org.id,
     },
   });

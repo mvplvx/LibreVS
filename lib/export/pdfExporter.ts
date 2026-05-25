@@ -10,7 +10,8 @@ export async function exportVsmeToPdf(input: VsmePdfInput): Promise<Uint8Array> 
   const dataset = buildCanonicalExportDataset(
     input.rows,
     input.schemaVersion,
-    input.exportedAt
+    input.exportedAt,
+    input.reportingCurrency
   );
   const manifest = createExportManifest({
     reportingPeriodId: input.reportingPeriodId,

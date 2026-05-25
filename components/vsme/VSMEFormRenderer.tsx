@@ -25,6 +25,11 @@ import {
   computeModuleMetrics,
   groupSectionsByModule,
 } from "./vsmeWorkspaceMetrics";
+import {
+  parseReportingCurrency,
+  type EuReportingCurrency,
+} from "@/lib/vsme/currency";
+import { useDeveloperMode } from "./useDeveloperMode";
 
 type VSMEFormRendererProps = {
   schema: VsmeUiSchema;
@@ -46,6 +51,8 @@ type VSMEFormRendererProps = {
   onRetryFieldSave: (fieldId: string) => void;
   onMaterialityChange: (fieldId: string, materiality: VsmeMateriality) => void;
   onRegisterNavigateToField?: (navigate: ((fieldId: string) => void) | null) => void;
+  reportingCurrency?: EuReportingCurrency;
+  lastSavedAt?: string | null;
 };
 
 export function VSMEFormRenderer({
@@ -68,7 +75,12 @@ export function VSMEFormRenderer({
   onRetryFieldSave,
   onMaterialityChange,
   onRegisterNavigateToField,
+  reportingCurrency: reportingCurrencyProp,
+  lastSavedAt = null,
 }: VSMEFormRendererProps) {
+  const [developerMode, setDeveloperMode] = useDeveloperMode();
+  const reportingCurrency =
+    reportingCurrencyProp ?? parseReportingCurrency("EUR");
   const sections = useMemo(
     () => schema.sections.filter((s) => s.applicability.visible),
     [schema.sections]
@@ -286,6 +298,9 @@ export function VSMEFormRenderer({
         moduleCInReportingScope={moduleCInScope}
         viewFilterDisabled={!uiMode.navEnabled}
         workspaceSaveStatus={workspaceSaveStatus}
+        lastSavedAt={lastSavedAt}
+        developerMode={developerMode}
+        onDeveloperModeChange={setDeveloperMode}
       />
 
       <VsmePhaseMessage state={uiMode.state} />
@@ -368,6 +383,8 @@ export function VSMEFormRenderer({
                 valueInputsDisabled={valueInputsDisabled}
                 materialityDisabled={materialityDisabled}
                 showExportBlockingHints={uiMode.showMissingRequiredIndicator}
+                reportingCurrency={reportingCurrency}
+                developerMode={developerMode}
               />
             ))
           )}

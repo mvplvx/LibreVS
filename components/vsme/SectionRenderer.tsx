@@ -9,6 +9,7 @@ import { workflowLabelText } from "./fieldUtils";
 import type { ReportingViewMode } from "./vsmeReportingViewMode";
 import { fieldVisibleInViewMode } from "./vsmeReportingViewMode";
 import { computeSectionSummary } from "./vsmeWorkspaceMetrics";
+import type { EuReportingCurrency } from "@/lib/vsme/currency";
 
 type SectionRendererProps = {
   section: VsmeUiSection;
@@ -28,6 +29,8 @@ type SectionRendererProps = {
   valueInputsDisabled?: boolean;
   materialityDisabled?: boolean;
   showExportBlockingHints?: boolean;
+  reportingCurrency?: EuReportingCurrency;
+  developerMode?: boolean;
 };
 
 export function SectionRenderer({
@@ -47,6 +50,8 @@ export function SectionRenderer({
   valueInputsDisabled = false,
   materialityDisabled = false,
   showExportBlockingHints = true,
+  reportingCurrency = "EUR",
+  developerMode = false,
 }: SectionRendererProps) {
   if (!section.applicability.visible) {
     return null;
@@ -170,6 +175,8 @@ export function SectionRenderer({
                         valueInputsDisabled={valueInputsDisabled}
                         materialityDisabled={materialityDisabled}
                         showExportBlockingHints={showExportBlockingHints}
+                        reportingCurrency={reportingCurrency}
+                        developerMode={developerMode}
                       />
                     </div>
                   ) : null}

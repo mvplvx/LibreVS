@@ -36,6 +36,8 @@ model Company {
   industry           String?
   /** Drives B/C applicability (workflow + export validation). */
   employeeCount      Int?
+  /** EU reporting currency (display/export metadata only — no FX). */
+  currency           String   @default("EUR")
   createdAt          DateTime @default(now())
 
   organizationId String?

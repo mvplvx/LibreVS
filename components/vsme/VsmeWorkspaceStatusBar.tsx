@@ -27,6 +27,9 @@ type VsmeWorkspaceStatusBarProps = {
   moduleCInReportingScope: boolean;
   viewFilterDisabled?: boolean;
   workspaceSaveStatus?: WorkspaceSaveStatus;
+  lastSavedAt?: string | null;
+  developerMode?: boolean;
+  onDeveloperModeChange?: (enabled: boolean) => void;
 };
 
 export function VsmeWorkspaceStatusBar({
@@ -42,6 +45,9 @@ export function VsmeWorkspaceStatusBar({
   moduleCInReportingScope,
   viewFilterDisabled = false,
   workspaceSaveStatus,
+  lastSavedAt = null,
+  developerMode = false,
+  onDeveloperModeChange,
 }: VsmeWorkspaceStatusBarProps) {
   const saveToneClass =
     workspaceSaveStatus?.tone === "error"
@@ -99,12 +105,30 @@ export function VsmeWorkspaceStatusBar({
           onChange={onViewModeChange}
           disabled={viewFilterDisabled}
         />
-        <p className="text-[10px] text-slate-500">
-          C module:{" "}
-          {moduleCInReportingScope
-            ? `required (≥${COMPREHENSIVE_EMPLOYEE_THRESHOLD} employees)`
-            : `optional (${employeeCount} employees — expand Comprehensive module)`}
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          {lastSavedAt ? (
+            <p className="text-[10px] text-slate-500">
+              Last saved {new Date(lastSavedAt).toLocaleString()}
+            </p>
+          ) : null}
+          {onDeveloperModeChange ? (
+            <label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-slate-600">
+              <input
+                type="checkbox"
+                checked={developerMode}
+                onChange={(e) => onDeveloperModeChange(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              Developer mode
+            </label>
+          ) : null}
+          <p className="text-[10px] text-slate-500">
+            C module:{" "}
+            {moduleCInReportingScope
+              ? `required (≥${COMPREHENSIVE_EMPLOYEE_THRESHOLD} employees)`
+              : `optional (${employeeCount} employees — expand Comprehensive module)`}
+          </p>
+        </div>
       </div>
     </div>
   );

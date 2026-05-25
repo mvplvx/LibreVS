@@ -42,6 +42,7 @@ export async function GET(
       exportReady: context.validation.exportReady,
       mandatoryCoveragePercentage: context.mandatoryCoveragePercentage,
       missingRequiredCount: context.missingRequiredCount,
+      reportingCurrency: context.reportingCurrency,
     });
 
     const filename = `librevs-vsme-${context.year}.pdf`;

@@ -1,5 +1,7 @@
 "use client";
 
+import { LIBREVS_POWERED_BY } from "@/lib/constants/librevsCommunity";
+
 type VsmeQuickExportProps = {
   periodId: string;
   year: number;
@@ -57,6 +59,7 @@ export function VsmeQuickExport({
           librevs-vsme-{year}.xlsx · librevs-vsme-{year}.pdf
         </p>
       ) : null}
+      <p className="mt-2 text-[10px] text-slate-400">{LIBREVS_POWERED_BY}</p>
     </div>
   );
 }

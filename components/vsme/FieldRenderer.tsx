@@ -8,8 +8,17 @@ import {
 } from "./fieldMaterialityState";
 import { EfragReference } from "./EfragReference";
 import { FieldSaveIndicator } from "./FieldSaveIndicator";
+import { NarrativeTextarea } from "./NarrativeTextarea";
 import type { FieldSaveState } from "./fieldSaveState";
 import { workflowLabelText } from "./fieldUtils";
+import {
+  hidesMaterialityControls,
+  isNarrativeField,
+} from "@/lib/vsme/ui/fieldUx";
+import {
+  isMonetaryUnit,
+  type EuReportingCurrency,
+} from "@/lib/vsme/currency";
 
 type FieldRendererProps = {
   field: VsmeUiField;
@@ -26,6 +35,8 @@ type FieldRendererProps = {
   isMaterialityUndecidedBlocking?: boolean;
   valueInputsDisabled?: boolean;
   materialityDisabled?: boolean;
+  reportingCurrency?: EuReportingCurrency;
+  developerMode?: boolean;
 };
 
 function cardShellClass(state: FieldMaterialityState, exportBlocking: boolean) {
@@ -39,6 +50,16 @@ function cardShellClass(state: FieldMaterialityState, exportBlocking: boolean) {
     return "border-amber-400 bg-white ring-1 ring-amber-200";
   }
   return "border-emerald-300 bg-white ring-1 ring-emerald-100";
+}
+
+function effectiveMaterialityState(
+  fieldId: string,
+  dbMaterialityByFieldId: Record<string, VsmeMateriality>
+): FieldMaterialityState {
+  if (hidesMaterialityControls(fieldId)) {
+    return "MATERIAL";
+  }
+  return getFieldMaterialityState(fieldId, dbMaterialityByFieldId);
 }
 
 export function FieldRenderer({
@@ -56,20 +77,29 @@ export function FieldRenderer({
   isMaterialityUndecidedBlocking = false,
   valueInputsDisabled = false,
   materialityDisabled = false,
+  reportingCurrency = "EUR",
+  developerMode = false,
 }: FieldRendererProps) {
   if (!field.applicability.visible) {
     return null;
   }
 
-  const materialityState = getFieldMaterialityState(
+  const hideMateriality = hidesMaterialityControls(field.fieldId);
+  const materialityState = effectiveMaterialityState(
     field.fieldId,
     dbMaterialityByFieldId
   );
-  const requiredToFill = isFieldRequiredToFill(field, materialityState);
-  const displayUnit = unit ?? field.unit ?? "";
+  const requiredToFill = hideMateriality
+    ? field.applicability.moduleInReportingScope
+    : isFieldRequiredToFill(field, materialityState);
+  const monetary = isMonetaryUnit(unit ?? field.unit);
+  const displayUnit = monetary
+    ? reportingCurrency
+    : (unit ?? field.unit ?? "");
   const inputId = `vsme-field-${field.fieldId}`;
   const inScope = field.applicability.moduleInReportingScope;
   const moduleCode = field.applicability.module;
+  const narrative = isNarrativeField(field);
 
   const canEnterData =
     materialityState === "MATERIAL" && !valueInputsDisabled;
@@ -101,11 +131,20 @@ export function FieldRenderer({
                 reference={field.efragReference}
                 explanation={field.description}
               />
+            ) : field.efragParagraph ? (
+              <span className="text-[10px] font-medium text-slate-500">
+                §{field.efragParagraph}
+              </span>
             ) : null}
           </div>
-          <p className="mt-0.5 font-mono text-[10px] text-slate-400">
-            {field.fieldId}
-          </p>
+          {field.description && !narrative ? (
+            <p className="mt-1 text-xs text-slate-600">{field.description}</p>
+          ) : null}
+          {developerMode ? (
+            <p className="mt-1 font-mono text-[10px] text-slate-400">
+              {field.fieldId}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <span
@@ -134,61 +173,67 @@ export function FieldRenderer({
         </div>
       </header>
 
-      <fieldset
-        className="mb-3 rounded-md border border-slate-200 bg-white/80 p-3"
-        disabled={materialityLocked}
-      >
-        <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
-          Reporting decision
-        </legend>
-        <p className="mb-2 text-xs text-slate-500">
-          Declare whether this datapoint is part of your report before entering
-          data.
+      {!hideMateriality ? (
+        <fieldset
+          className="mb-3 rounded-md border border-slate-200 bg-white/80 p-3"
+          disabled={materialityLocked}
+        >
+          <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Reporting decision
+          </legend>
+          <p className="mb-2 text-xs text-slate-500">
+            Declare whether this datapoint is part of your report before entering
+            data.
+          </p>
+          <div className="space-y-2">
+            <label className="flex cursor-pointer gap-2 rounded-md border border-transparent px-2 py-2 hover:bg-slate-50 has-[:checked]:border-emerald-200 has-[:checked]:bg-emerald-50/50">
+              <input
+                type="radio"
+                name={`materiality-${field.fieldId}`}
+                checked={materialityState === "MATERIAL"}
+                disabled={materialityLocked}
+                onChange={() =>
+                  onMaterialityChange(field.fieldId, "material")
+                }
+                className="mt-0.5"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-slate-900">Material</span>
+                <span className="mt-0.5 block text-xs text-slate-600">
+                  This data will be reported and is required if in scope
+                </span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer gap-2 rounded-md border border-transparent px-2 py-2 hover:bg-slate-50 has-[:checked]:border-slate-300 has-[:checked]:bg-slate-100">
+              <input
+                type="radio"
+                name={`materiality-${field.fieldId}`}
+                checked={materialityState === "NON_MATERIAL"}
+                disabled={materialityLocked}
+                onChange={() =>
+                  onMaterialityChange(field.fieldId, "non_material")
+                }
+                className="mt-0.5"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-slate-900">Non-material</span>
+                <span className="mt-0.5 block text-xs text-slate-600">
+                  This data will be explicitly excluded from reporting
+                </span>
+              </span>
+            </label>
+          </div>
+          {materialitySaving ? (
+            <p className="mt-2 text-xs text-slate-500">Saving decision…</p>
+          ) : null}
+        </fieldset>
+      ) : (
+        <p className="mb-3 text-xs font-medium text-slate-600">
+          B1 disclosure — always required when in reporting scope
         </p>
-        <div className="space-y-2">
-          <label className="flex cursor-pointer gap-2 rounded-md border border-transparent px-2 py-2 hover:bg-slate-50 has-[:checked]:border-emerald-200 has-[:checked]:bg-emerald-50/50">
-            <input
-              type="radio"
-              name={`materiality-${field.fieldId}`}
-              checked={materialityState === "MATERIAL"}
-              disabled={materialityLocked}
-              onChange={() =>
-                onMaterialityChange(field.fieldId, "material")
-              }
-              className="mt-0.5"
-            />
-            <span className="text-sm">
-              <span className="font-medium text-slate-900">Material</span>
-              <span className="mt-0.5 block text-xs text-slate-600">
-                This data will be reported and is required if in scope
-              </span>
-            </span>
-          </label>
-          <label className="flex cursor-pointer gap-2 rounded-md border border-transparent px-2 py-2 hover:bg-slate-50 has-[:checked]:border-slate-300 has-[:checked]:bg-slate-100">
-            <input
-              type="radio"
-              name={`materiality-${field.fieldId}`}
-              checked={materialityState === "NON_MATERIAL"}
-              disabled={materialityLocked}
-              onChange={() =>
-                onMaterialityChange(field.fieldId, "non_material")
-              }
-              className="mt-0.5"
-            />
-            <span className="text-sm">
-              <span className="font-medium text-slate-900">Non-material</span>
-              <span className="mt-0.5 block text-xs text-slate-600">
-                This data will be explicitly excluded from reporting
-              </span>
-            </span>
-          </label>
-        </div>
-        {materialitySaving ? (
-          <p className="mt-2 text-xs text-slate-500">Saving decision…</p>
-        ) : null}
-      </fieldset>
+      )}
 
-      {materialityState === "UNDECIDED" ? (
+      {materialityState === "UNDECIDED" && !hideMateriality ? (
         <div
           className="mb-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
           role="status"
@@ -209,7 +254,7 @@ export function FieldRenderer({
         </p>
       ) : null}
 
-      {field.description && materialityState === "MATERIAL" ? (
+      {field.description && narrative && materialityState === "MATERIAL" ? (
         <p className="mb-2 text-xs text-slate-600">{field.description}</p>
       ) : null}
 
@@ -250,9 +295,21 @@ export function FieldRenderer({
                 className="w-full max-w-xs rounded-md border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50 disabled:text-slate-500"
               />
               {displayUnit ? (
-                <span className="text-xs text-slate-500">{displayUnit}</span>
+                <span className="text-xs font-medium text-slate-600">
+                  {displayUnit}
+                </span>
               ) : null}
             </div>
+          ) : narrative ? (
+            <NarrativeTextarea
+              id={inputId}
+              value={value}
+              disabled={!canEnterData}
+              onChange={(next) =>
+                onChange(field.fieldId, next, displayUnit || null)
+              }
+              onBlur={handleBlur}
+            />
           ) : (
             <input
               id={inputId}
@@ -278,11 +335,13 @@ export function FieldRenderer({
         </>
       ) : null}
 
-      <p className="mt-2 text-[10px] text-slate-400">
-        {workflowLabelText(field.applicability.workflowLabel)}
-      </p>
+      {developerMode ? (
+        <p className="mt-2 text-[10px] text-slate-400">
+          {workflowLabelText(field.applicability.workflowLabel)}
+        </p>
+      ) : null}
 
-      {isMaterialityUndecidedBlocking ? (
+      {isMaterialityUndecidedBlocking && !hideMateriality ? (
         <p className="mt-1 text-xs text-amber-800">
           Reporting decision required — blocks export readiness
         </p>

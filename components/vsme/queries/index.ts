@@ -3,6 +3,7 @@
  * UI components must not call apiGet/apiPost directly.
  */
 export { useCompanies } from "./useCompanies";
+export { useUpdateCompany } from "./useUpdateCompany";
 export { useReportingPeriods } from "./useReportingPeriods";
 export { pickActiveCompany } from "./pickActiveCompany";
 export { useVsmeWorkspace } from "./useVsmeWorkspace";

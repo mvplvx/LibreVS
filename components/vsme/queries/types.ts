@@ -11,6 +11,7 @@ export type CompanyRecord = {
   id: string;
   name: string;
   employeeCount?: number | null;
+  currency?: string | null;
 };
 
 export type ReportingPeriodRecord = {

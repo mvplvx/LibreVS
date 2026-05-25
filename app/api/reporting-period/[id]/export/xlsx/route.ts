@@ -45,6 +45,7 @@ export async function GET(
       reportingPeriodId: context.reportingPeriodId,
       rows: context.rows,
       schemaVersion: context.schemaVersion,
+      reportingCurrency: context.reportingCurrency,
     });
 
     const filename = `librevs-vsme-${context.year}.xlsx`;

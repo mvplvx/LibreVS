@@ -9,6 +9,7 @@ type ExportAuditPanelProps = {
   audit: ExportAuditResult | null;
   isLoading?: boolean;
   error?: string | null;
+  developerMode?: boolean;
   onNavigateToField?: (fieldId: string) => void;
   /** When set, stores field id and navigates away (e.g. export-review → /vsme). */
   onNavigateAwayToField?: (fieldId: string) => void;
@@ -26,25 +27,45 @@ function groupBySection(
   return map;
 }
 
+function nextRequiredField(
+  audit: ExportAuditResult | null
+): ExportBlockingField | null {
+  if (!audit || audit.blockingFields.length === 0) {
+    return null;
+  }
+  const sorted = [...audit.blockingFields].sort((a, b) => {
+    const sectionCmp = a.section.localeCompare(b.section);
+    if (sectionCmp !== 0) {
+      return sectionCmp;
+    }
+    return a.label.localeCompare(b.label);
+  });
+  return sorted[0] ?? null;
+}
+
 function BlockingFieldRow({
   field,
   onNavigate,
+  developerMode = false,
 }: {
   field: ExportBlockingField;
   onNavigate?: (fieldId: string) => void;
+  developerMode?: boolean;
 }) {
   return (
     <li className="rounded-md border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <button
           type="button"
-          className="text-left font-medium text-slate-900 hover:text-blue-800 hover:underline"
+          className="text-left font-medium text-slate-900 hover:text-blue-800 hover:underline disabled:cursor-default disabled:no-underline"
           onClick={() => onNavigate?.(field.fieldId)}
           disabled={!onNavigate}
         >
           {field.label}
         </button>
-        <span className="font-mono text-[10px] text-slate-400">{field.fieldId}</span>
+        {developerMode ? (
+          <span className="font-mono text-[10px] text-slate-400">{field.fieldId}</span>
+        ) : null}
       </div>
       {field.subsection ? (
         <p className="mt-0.5 text-xs text-slate-500">{field.subsection}</p>
@@ -86,6 +107,7 @@ export function ExportAuditPanel({
   audit,
   isLoading = false,
   error = null,
+  developerMode = false,
   onNavigateToField,
   onNavigateAwayToField,
 }: ExportAuditPanelProps) {
@@ -95,6 +117,8 @@ export function ExportAuditPanel({
     () => (audit ? groupBySection(audit.blockingFields) : new Map()),
     [audit]
   );
+
+  const nextField = useMemo(() => nextRequiredField(audit), [audit]);
 
   if (audit?.exportReady) {
     return null;
@@ -148,6 +172,26 @@ export function ExportAuditPanel({
             <p className="mt-3 text-sm text-red-800">{error}</p>
           ) : null}
 
+          {nextField ? (
+            <div className="mt-3 rounded-md border border-amber-300/80 bg-white/70 px-3 py-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">
+                Next required disclosure
+              </p>
+              <p className="mt-1 text-sm text-slate-800">{nextField.label}</p>
+              <p className="mt-0.5 text-xs text-slate-600">
+                Section {nextField.section}
+                {nextField.subsection ? ` · ${nextField.subsection}` : ""}
+              </p>
+              <button
+                type="button"
+                className="mt-2 text-xs font-medium text-blue-800 hover:underline"
+                onClick={() => handleNavigate(nextField.fieldId)}
+              >
+                Go to field →
+              </button>
+            </div>
+          ) : null}
+
           {audit && audit.missingSections.length > 0 ? (
             <p className="mt-3 text-xs text-amber-900">
               <span className="font-medium">Incomplete sections: </span>
@@ -156,20 +200,25 @@ export function ExportAuditPanel({
           ) : null}
 
           {audit && audit.sectionSummaries.length > 0 ? (
-            <ul className="mt-3 flex flex-wrap gap-2">
-              {audit.sectionSummaries.map((s) => (
-                <li
-                  key={s.section}
-                  className="rounded-md border border-amber-200/60 bg-white/60 px-2 py-1 text-[10px] text-amber-950"
-                >
-                  <span className="font-semibold">{s.section}</span>
-                  <span className="text-amber-800">
-                    {" "}
-                    · {s.missingRequiredFields} missing
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+                Section export readiness
+              </p>
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {audit.sectionSummaries.map((s) => (
+                  <li
+                    key={s.section}
+                    className="rounded-md border border-amber-200/60 bg-white/60 px-2 py-1 text-[10px] text-amber-950"
+                  >
+                    <span className="font-semibold">{s.section}</span>
+                    <span className="text-amber-800">
+                      {" "}
+                      · {s.missingRequiredFields} missing
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
 
           {audit && audit.blockingFields.length > 0 ? (
@@ -182,11 +231,12 @@ export function ExportAuditPanel({
                       Section {section}
                     </h3>
                     <ul className="mt-2 space-y-2">
-                      {fields.map((field) => (
+                      {fields.map((field: ExportBlockingField) => (
                         <BlockingFieldRow
                           key={field.fieldId}
                           field={field}
                           onNavigate={handleNavigate}
+                          developerMode={developerMode}
                         />
                       ))}
                     </ul>

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUser } from "@/lib/auth";
 import { withApiHandler, parseJsonBody, resolveRouteId } from "@/lib/api/handler";
 import { apiError, apiSuccess } from "@/lib/api/response";
+import { validateReportingCurrencyInput } from "@/lib/vsme/validateReportingCurrency";
 
 export async function PATCH(
   req: Request,
@@ -20,12 +21,14 @@ export async function PATCH(
       return apiError("Invalid JSON body", 400);
     }
 
-    const { name, registrationNumber, country, industry, employeeCount } = body as {
+    const { name, registrationNumber, country, industry, employeeCount, currency } =
+      body as {
       name?: unknown;
       registrationNumber?: unknown;
       country?: unknown;
       industry?: unknown;
       employeeCount?: unknown;
+      currency?: unknown;
     };
 
     const existing = await prisma.company.findFirst({
@@ -42,6 +45,7 @@ export async function PATCH(
       country?: string | null;
       industry?: string | null;
       employeeCount?: number | null;
+      currency?: string;
     } = {};
 
     if (typeof name === "string" && name.trim()) {
@@ -69,6 +73,13 @@ export async function PATCH(
       } else {
         return apiError("employeeCount must be a non-negative number or null", 400);
       }
+    }
+    if (currency !== undefined) {
+      const currencyResult = validateReportingCurrencyInput(currency);
+      if (!currencyResult.ok) {
+        return apiError(currencyResult.error, 400);
+      }
+      data.currency = currencyResult.currency;
     }
 
     const company = await prisma.company.update({

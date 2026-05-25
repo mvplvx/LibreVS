@@ -1,6 +1,11 @@
 import type { VsmeExportRow } from "@/lib/vsme/exportMapping";
 import { enrichExportRows, type EnrichedVsmeExportRow } from "./enrichExportRows";
 import { computeRegistryHash } from "@/lib/vsme/registryHash";
+import {
+  DEFAULT_REPORTING_CURRENCY,
+  parseReportingCurrency,
+  type EuReportingCurrency,
+} from "@/lib/vsme/currency";
 
 export type CanonicalExportRow = {
   fieldId: string;
@@ -19,6 +24,7 @@ export type ExportDatasetMetadata = {
   exportedAt: string;
   registryHash: string;
   rowCount: number;
+  reportingCurrency: EuReportingCurrency;
 };
 
 export type CanonicalExportDataset = {
@@ -44,7 +50,8 @@ function toCanonicalRow(row: EnrichedVsmeExportRow): CanonicalExportRow {
 export function buildCanonicalExportDataset(
   rows: VsmeExportRow[],
   schemaVersion: string,
-  exportedAt: string = new Date().toISOString()
+  exportedAt: string = new Date().toISOString(),
+  reportingCurrency: string | null | undefined = DEFAULT_REPORTING_CURRENCY
 ): CanonicalExportDataset {
   const enriched = enrichExportRows(rows);
   const canonical = enriched
@@ -57,6 +64,7 @@ export function buildCanonicalExportDataset(
       exportedAt,
       registryHash: computeRegistryHash(),
       rowCount: canonical.length,
+      reportingCurrency: parseReportingCurrency(reportingCurrency),
     },
     rows: canonical,
   };

@@ -16,6 +16,7 @@ export type VsmeExportInput = {
   reportingPeriodId: string;
   rows: VsmeExportRow[];
   schemaVersion: string;
+  reportingCurrency?: string;
 };
 
 const HEADER = [

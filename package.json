@@ -14,7 +14,8 @@
     "vsme:contract-test": "npx tsx scripts/vsme-contract-test.ts",
     "export:regression-test": "npx tsx scripts/export-regression-test.ts",
     "seed:test": "npx tsx scripts/seed/test-environment.ts",
-    "phase6:smoke": "npx tsx scripts/phase6-smoke-check.ts"
+    "phase6:smoke": "npx tsx scripts/phase6-smoke-check.ts",
+    "phase7b:smoke": "npx tsx scripts/phase7b-smoke-check.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

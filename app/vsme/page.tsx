@@ -20,6 +20,7 @@ import { deriveVsmeReportingUiMode } from "@/components/vsme/vsmeReportingUiMode
 import type { VsmeFieldValue, VsmeMateriality } from "@/components/vsme/types";
 import { getReportingState } from "@/lib/vsme/getReportingState";
 import {
+  useUpdateCompany,
   useUpdateVsmeMateriality,
   useVsmeCoverage,
   useVsmeFieldValuesMap,
@@ -27,6 +28,11 @@ import {
   useVsmeUiSchema,
   useVsmeWorkspace,
 } from "@/components/vsme/queries";
+import {
+  parseReportingCurrency,
+  type EuReportingCurrency,
+} from "@/lib/vsme/currency";
+import { useDeveloperMode } from "@/components/vsme/useDeveloperMode";
 
 function valuesMapFromRecord(
   values: Record<string, VsmeFieldValue>
@@ -67,6 +73,21 @@ export default function VsmeReportingPage() {
   const navigateToFieldRef = useRef<((fieldId: string) => void) | null>(null);
 
   const updateMaterialityMutation = useUpdateVsmeMateriality();
+  const updateCompanyMutation = useUpdateCompany();
+  const [developerMode] = useDeveloperMode();
+
+  const reportingCurrency = parseReportingCurrency(company?.currency);
+
+  const handleCurrencyChange = async (currency: EuReportingCurrency) => {
+    if (!company?.id) {
+      return;
+    }
+    try {
+      await updateCompanyMutation.mutateAsync({ companyId: company.id, currency });
+    } catch {
+      /* company list refetch on success */
+    }
+  };
 
   const [localValues, setLocalValues] = useState<Record<string, VsmeFieldValue>>(
     {}
@@ -124,6 +145,7 @@ export default function VsmeReportingPage() {
 
   const {
     saveStateByFieldId,
+    lastSavedAt,
     workspaceSaveStatus,
     handleFieldChange,
     handleFieldSave,
@@ -230,17 +252,7 @@ export default function VsmeReportingPage() {
               Reporting lifecycle · module scope from employee count
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <SystemHealthIndicator />
-          <nav className="flex gap-3 text-sm">
-            <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">
-              Dashboard
-            </Link>
-            <Link href="/" className="text-slate-600 hover:text-slate-900">
-              Home
-            </Link>
-          </nav>
-          </div>
+          <SystemHealthIndicator />
         </header>
 
         {error ? (
@@ -249,15 +261,18 @@ export default function VsmeReportingPage() {
           </div>
         ) : null}
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <VsmeWorkspaceSelectors
             companies={companies}
             company={company}
             employeeCount={employeeCount}
+            reportingCurrency={reportingCurrency}
             periods={periods}
             periodId={periodId}
             onCompanyChange={setCompanyId}
             onPeriodChange={setPeriodId}
+            onCurrencyChange={handleCurrencyChange}
+            currencySaving={updateCompanyMutation.isPending}
             showScopeHint
           />
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -361,6 +376,7 @@ export default function VsmeReportingPage() {
                   audit={exportAuditQuery.audit}
                   isLoading={exportAuditQuery.isLoading}
                   error={exportAuditQuery.error?.message ?? null}
+                  developerMode={developerMode}
                   onNavigateToField={(fieldId) =>
                     navigateToFieldRef.current?.(fieldId)
                   }
@@ -369,7 +385,7 @@ export default function VsmeReportingPage() {
             ) : null}
 
             <VSMEFormRenderer
-              schema={schemaQuery.schema}
+              schema={schemaQuery.schema!}
               values={localValues}
               materialityByFieldId={dbMaterialityByFieldId}
               coverage={coverageQuery.coverage}
@@ -390,6 +406,8 @@ export default function VsmeReportingPage() {
               onRetryFieldSave={retryFieldSave}
               onMaterialityChange={handleMaterialityChange}
               onRegisterNavigateToField={registerNavigateToField}
+              reportingCurrency={reportingCurrency}
+              lastSavedAt={lastSavedAt}
             />
           </>
         ) : (

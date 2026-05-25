@@ -14,6 +14,7 @@ import { ExportIntegrityIndicator } from "@/components/vsme/ExportIntegrityIndic
 import { VsmeWorkspaceSelectors } from "@/components/vsme/VsmeWorkspaceSelectors";
 import { useVsmeDashboard, useVsmeWorkspace } from "@/components/vsme/queries";
 import { useExportValidation } from "@/hooks/useExportValidation";
+import { parseReportingCurrency } from "@/lib/vsme/currency";
 
 export default function DashboardPage() {
   const {
@@ -39,6 +40,8 @@ export default function DashboardPage() {
 
   const error =
     workspaceError ?? dashboardQuery.error?.message ?? null;
+
+  const reportingCurrency = parseReportingCurrency(company?.currency);
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
@@ -73,6 +76,7 @@ export default function DashboardPage() {
               companies={companies}
               company={company}
               employeeCount={employeeCount}
+              reportingCurrency={reportingCurrency}
               periods={periods}
               periodId={periodId}
               onCompanyChange={setCompanyId}

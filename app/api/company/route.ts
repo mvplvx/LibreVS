@@ -2,6 +2,11 @@ import { prisma } from "@/lib/db/prisma";
 import { getUser } from "@/lib/auth";
 import { withApiHandler, parseJsonBody } from "@/lib/api/handler";
 import { apiError, apiSuccess } from "@/lib/api/response";
+import {
+  DEFAULT_REPORTING_CURRENCY,
+  type EuReportingCurrency,
+} from "@/lib/vsme/currency";
+import { validateReportingCurrencyInput } from "@/lib/vsme/validateReportingCurrency";
 
 export async function GET(req: Request) {
   return withApiHandler(async () => {
@@ -23,12 +28,14 @@ export async function POST(req: Request) {
       return apiError("Invalid JSON body", 400);
     }
 
-    const { name, registrationNumber, country, industry, employeeCount } = body as {
+    const { name, registrationNumber, country, industry, employeeCount, currency } =
+      body as {
       name?: unknown;
       registrationNumber?: unknown;
       country?: unknown;
       industry?: unknown;
       employeeCount?: unknown;
+      currency?: unknown;
     };
 
     if (typeof name !== "string" || !name.trim()) {
@@ -40,6 +47,15 @@ export async function POST(req: Request) {
         ? Math.max(0, Math.floor(employeeCount))
         : undefined;
 
+    let parsedCurrency: EuReportingCurrency = DEFAULT_REPORTING_CURRENCY;
+    if (currency !== undefined) {
+      const currencyResult = validateReportingCurrencyInput(currency);
+      if (!currencyResult.ok) {
+        return apiError(currencyResult.error, 400);
+      }
+      parsedCurrency = currencyResult.currency as EuReportingCurrency;
+    }
+
     const company = await prisma.company.create({
       data: {
         name: name.trim(),
@@ -50,6 +66,7 @@ export async function POST(req: Request) {
         country: typeof country === "string" ? country : undefined,
         industry: typeof industry === "string" ? industry : undefined,
         employeeCount: parsedEmployeeCount,
+        currency: parsedCurrency,
         organizationId,
       },
     });

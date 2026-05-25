@@ -16,6 +16,8 @@ import {
 } from "@/hooks/useExportSnapshots";
 import { useExportValidation } from "@/hooks/useExportValidation";
 import { useVsmeWorkspace } from "@/components/vsme/queries";
+import { parseReportingCurrency } from "@/lib/vsme/currency";
+import { useDeveloperMode } from "@/components/vsme/useDeveloperMode";
 
 export default function ExportReviewPage() {
   const workspace = useVsmeWorkspace();
@@ -40,6 +42,9 @@ export default function ExportReviewPage() {
   const finalizeMutation = useFinalizeExportSnapshot(periodId);
   const validation = exportQuery.validation;
   const preview = exportQuery.preview;
+
+  const [developerMode] = useDeveloperMode();
+  const reportingCurrency = parseReportingCurrency(company?.currency);
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set()
@@ -118,6 +123,7 @@ export default function ExportReviewPage() {
             companies={companies}
             company={company}
             employeeCount={employeeCount}
+            reportingCurrency={reportingCurrency}
             periods={periods}
             periodId={periodId}
             onCompanyChange={setCompanyId}
@@ -174,6 +180,7 @@ export default function ExportReviewPage() {
                 audit={exportAuditQuery.audit}
                 isLoading={exportAuditQuery.isLoading}
                 error={exportAuditQuery.error?.message ?? null}
+                developerMode={developerMode}
                 onNavigateAwayToField={(fieldId) => {
                   try {
                     sessionStorage.setItem(

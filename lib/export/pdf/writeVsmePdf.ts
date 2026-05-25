@@ -18,6 +18,7 @@ export type VsmePdfInput = {
   exportReady: boolean;
   mandatoryCoveragePercentage: number;
   missingRequiredCount: number;
+  reportingCurrency?: string;
 };
 
 const PAGE_WIDTH = 595;

@@ -1,5 +1,7 @@
 "use client";
 
+import { LIBREVS_POWERED_BY } from "@/lib/constants/librevsCommunity";
+
 type ExportCenterProps = {
   periodId: string | null;
   year: number | null;
@@ -95,6 +97,7 @@ export function ExportCenter({
           Files: librevs-vsme-{year}.xlsx · librevs-vsme-{year}.pdf
         </p>
       ) : null}
+      <p className="mt-3 text-[10px] text-slate-400">{LIBREVS_POWERED_BY}</p>
     </section>
   );
 }

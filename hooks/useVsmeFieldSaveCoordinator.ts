@@ -57,6 +57,7 @@ export function useVsmeFieldSaveCoordinator(options: {
   const [saveStateByFieldId, setSaveStateByFieldId] = useState<
     Record<string, FieldSaveState>
   >({});
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   const persistedRef = useRef<Record<string, PersistedValue>>({});
   const debounceTimersRef = useRef<
@@ -241,6 +242,7 @@ export function useVsmeFieldSaveCoordinator(options: {
           [fieldId]: { value: normalized, unit },
         }));
         setFieldSaveState(fieldId, "saved");
+        setLastSavedAt(new Date().toISOString());
         scheduleSavedFade(fieldId);
       } catch (err) {
         setFieldSaveState(fieldId, "error");
@@ -370,8 +372,8 @@ export function useVsmeFieldSaveCoordinator(options: {
   );
 
   const workspaceSaveStatus = useMemo(
-    () => deriveWorkspaceSaveStatus(saveStateByFieldId),
-    [saveStateByFieldId]
+    () => deriveWorkspaceSaveStatus(saveStateByFieldId, lastSavedAt),
+    [saveStateByFieldId, lastSavedAt]
   );
 
   useEffect(() => {
@@ -393,6 +395,7 @@ export function useVsmeFieldSaveCoordinator(options: {
 
   return {
     saveStateByFieldId,
+    lastSavedAt,
     workspaceSaveStatus,
     handleFieldChange,
     handleFieldSave,
