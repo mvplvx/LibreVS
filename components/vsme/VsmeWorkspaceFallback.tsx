@@ -27,7 +27,7 @@ export function VsmeWorkspaceFallback({
           to create the demo organization and company, or add a company via the API.
         </p>
         <Link
-          href="/system"
+          href="/system/health"
           className="mt-3 inline-block text-sm font-medium text-slate-700 underline"
         >
           View system diagnostics
@@ -63,12 +63,15 @@ export function VsmeWorkspaceFallback({
           No reporting periods for {company.name}
         </p>
         <p className="mt-1 text-sm text-slate-600">
-          Create a reporting period to start schema-driven VSME entry.
+          No reporting periods exist yet. Create a reporting period to begin VSME
+          reporting for this company.
         </p>
         {onCreated ? (
           <div className="mt-4">
             <CreateReportingPeriodCta
               companyId={company.id}
+              companyName={company.name}
+              existingYears={periods.map((p) => p.year)}
               onCreated={onCreated}
             />
           </div>

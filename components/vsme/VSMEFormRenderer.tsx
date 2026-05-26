@@ -197,10 +197,7 @@ export function VSMEFormRenderer({
     return `${mod} · ${section.code}`;
   }, [sections, activeSectionCode]);
 
-  const overallCompletionPct =
-    coverage?.requiredCoveragePercentage ??
-    coverage?.mandatoryCoveragePercentage ??
-    0;
+  const overallCompletionPct = coverage?.requiredCoveragePercentage ?? 0;
 
   const mountSection = useCallback((code: string) => {
     setMountedCodes((prev) => {

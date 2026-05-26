@@ -34,7 +34,7 @@ export function SystemHealthIndicator() {
 
   return (
     <a
-      href="/system"
+      href="/system/health"
       className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-600 shadow-sm hover:bg-slate-50"
       title={
         isLoading

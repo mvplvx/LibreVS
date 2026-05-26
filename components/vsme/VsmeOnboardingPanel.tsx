@@ -21,8 +21,11 @@ export function VsmeOnboardingPanel({
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-6 py-8 text-center">
         <p className="text-lg font-medium text-amber-900">No companies available</p>
         <p className="mt-2 text-sm text-amber-800">
-          Run the test seed to create pilot companies:{" "}
-          <code className="rounded bg-amber-100 px-1">npm run seed:test</code>
+          No companies exist yet. Run{" "}
+          <code className="rounded bg-amber-100 px-1">npm run db:seed</code> for a
+          demo company, or{" "}
+          <code className="rounded bg-amber-100 px-1">npm run seed:test</code> for
+          pilot data.
         </p>
       </div>
     );

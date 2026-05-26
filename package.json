@@ -1,6 +1,6 @@
 {
   "name": "librevs",
-  "version": "0.1.0",
+  "version": "0.8.0-rc1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,7 +15,8 @@
     "export:regression-test": "npx tsx scripts/export-regression-test.ts",
     "seed:test": "npx tsx scripts/seed/test-environment.ts",
     "phase6:smoke": "npx tsx scripts/phase6-smoke-check.ts",
-    "phase7b:smoke": "npx tsx scripts/phase7b-smoke-check.ts"
+    "phase7b:smoke": "npx tsx scripts/phase7b-smoke-check.ts",
+    "phase8:smoke": "npx tsx scripts/phase8-smoke-check.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

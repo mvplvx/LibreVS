@@ -32,7 +32,6 @@ export async function GET(
       schemaVersion: data.schemaVersion,
       employeeCount: data.employeeCount,
       totalDataPoints: data.totalDataPoints,
-      totalCoveragePercentage: vsme.totalCoveragePercentage,
       fieldsReported: vsme.fieldsReported,
       totalFields: vsme.totalFields,
       ...completenessApiFields(vsme),

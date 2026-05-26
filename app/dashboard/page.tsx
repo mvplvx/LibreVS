@@ -15,6 +15,7 @@ import { VsmeWorkspaceSelectors } from "@/components/vsme/VsmeWorkspaceSelectors
 import { useVsmeDashboard, useVsmeWorkspace } from "@/components/vsme/queries";
 import { useExportValidation } from "@/hooks/useExportValidation";
 import { parseReportingCurrency } from "@/lib/vsme/currency";
+import { DataOwnershipNotice } from "@/components/librevs/DataOwnershipNotice";
 
 export default function DashboardPage() {
   const {
@@ -82,6 +83,7 @@ export default function DashboardPage() {
               onCompanyChange={setCompanyId}
               onPeriodChange={setPeriodId}
             />
+            <DataOwnershipNotice compact />
           </aside>
 
           <div className="col-span-12 lg:col-span-9 space-y-6">

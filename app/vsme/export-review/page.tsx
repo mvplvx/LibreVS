@@ -18,6 +18,7 @@ import { useExportValidation } from "@/hooks/useExportValidation";
 import { useVsmeWorkspace } from "@/components/vsme/queries";
 import { parseReportingCurrency } from "@/lib/vsme/currency";
 import { useDeveloperMode } from "@/components/vsme/useDeveloperMode";
+import { ExportDisclaimer } from "@/components/librevs/ExportDisclaimer";
 
 export default function ExportReviewPage() {
   const workspace = useVsmeWorkspace();
@@ -130,6 +131,8 @@ export default function ExportReviewPage() {
             onPeriodChange={setPeriodId}
           />
         </div>
+
+        <ExportDisclaimer className="mb-6" />
 
         {loading ? (
           <p className="text-sm text-slate-500">Loading export validation…</p>

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import {
   LIBREVS_DISCUSSIONS_URL,
+  LIBREVS_GITHUB_REPO,
   LIBREVS_ISSUES_URL,
   LIBREVS_PHILOSOPHY,
   LIBREVS_SCHEMA_VERSION,
 } from "@/lib/constants/librevsCommunity";
+import { LIBREVS_RELEASE_CANDIDATE } from "@/lib/constants/librevsRelease";
 import { VSME_FIELD_COUNT } from "@/lib/vsme/vsme.fieldRegistry";
 
 const CHARACTERISTICS = [
@@ -56,7 +58,7 @@ export function HomeLanding() {
         {/* Hero */}
         <header className="border-b border-slate-200 pb-10 sm:pb-12">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Open-source VSME reporting infrastructure
+            Open-source VSME reporting infrastructure · {LIBREVS_RELEASE_CANDIDATE}
           </p>
           <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
             Structured sustainability reporting for European SMEs
@@ -148,6 +150,19 @@ export function HomeLanding() {
             {LIBREVS_PHILOSOPHY}
           </p>
           <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            <li>
+              <a
+                href={LIBREVS_GITHUB_REPO}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-slate-700 underline-offset-2 hover:underline"
+              >
+                GitHub
+              </a>
+            </li>
+            <li>
+              <span className="text-slate-500">MIT license · no telemetry</span>
+            </li>
             <li>
               <a
                 href={LIBREVS_DISCUSSIONS_URL}

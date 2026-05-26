@@ -28,7 +28,6 @@ export async function GET(
       reportingPeriodId: data.reportingPeriodId,
       schemaVersion: data.schemaVersion,
       employeeCount: data.employeeCount,
-      totalCoveragePercentage: vsme.totalCoveragePercentage,
       fieldsReported: vsme.fieldsReported,
       totalFields: vsme.totalFields,
       applicableSections: vsme.applicableSections,

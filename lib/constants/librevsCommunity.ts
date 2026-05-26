@@ -1,5 +1,5 @@
 /** Open-source community links (no telemetry). */
-export const LIBREVS_VERSION = "0.1.0";
+export const LIBREVS_VERSION = "0.8.0-rc1";
 export const LIBREVS_SCHEMA_VERSION = "2.0.0";
 
 export const LIBREVS_GITHUB_REPO =
