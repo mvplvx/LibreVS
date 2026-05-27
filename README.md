@@ -26,7 +26,7 @@
 
 LibreVS is built for **digital sovereignty**: your data stays in your database. You control backups, upgrades, and retention. The application validates completeness against a frozen field registry and produces reproducible export artifacts for review by your team or advisors.
 
-**License:** MIT — see [LICENSE](./LICENSE).
+**License:** AGPLv3 — see [LICENSE](./LICENSE).
 
 ## Minimum requirements
 
