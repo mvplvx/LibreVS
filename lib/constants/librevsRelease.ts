@@ -5,7 +5,7 @@ export const LIBREVS_RELEASE_CANDIDATE = "RC1";
 
 export const LIBREVS_EDITION = "Community Edition";
 
-export const LIBREVS_LICENSE_NAME = "MIT";
+export const LIBREVS_LICENSE_NAME = "AGPLv3";
 
 export type LibreVsBuildInfo = {
   version: string;

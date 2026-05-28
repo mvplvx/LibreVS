@@ -78,7 +78,7 @@ export async function writeVsmePdf(
       y,
       size,
       font: usedFont,
-      color: rgb(0.1, 0.1, 0.1),
+      color: rgb(0.07, 0.09, 0.13),
     });
     y -= LINE_HEIGHT + (bold ? 4 : 2);
   };

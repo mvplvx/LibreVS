@@ -1,6 +1,7 @@
 {
   "name": "librevs",
   "version": "0.8.0-rc1",
+  "license": "AGPL-3.0-only",
   "private": true,
   "scripts": {
     "dev": "next dev",

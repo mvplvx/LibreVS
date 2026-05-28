@@ -27,7 +27,7 @@ export function LibreVsFooterMeta() {
               releaseCandidate: body.data.releaseCandidate,
               edition: "Community Edition",
               schemaVersion: body.data.schemaVersion,
-              license: "MIT",
+              license: "AGPLv3",
               gitCommitShort: body.data.gitCommitShort,
               environment: "production",
             })

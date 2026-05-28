@@ -161,7 +161,7 @@ export function HomeLanding() {
               </a>
             </li>
             <li>
-              <span className="text-slate-500">MIT license · no telemetry</span>
+              <span className="text-slate-500">AGPLv3 license · no telemetry</span>
             </li>
             <li>
               <a
