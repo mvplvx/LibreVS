@@ -8,7 +8,7 @@ until npx prisma migrate deploy; do
 done
 
 echo "[librevs] Running base seed..."
-node prisma/seed.js
+npx prisma db seed
 
 if [ "${LIBREVS_SEED_TEST_ENV:-1}" = "1" ]; then
   echo "[librevs] Running test-environment seed..."

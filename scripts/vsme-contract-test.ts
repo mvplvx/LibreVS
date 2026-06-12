@@ -229,6 +229,7 @@ async function main(): Promise<void> {
         fieldId: v.fieldId,
         value: v.value,
         unit: v.unit,
+        createdAt: new Date(),
       })),
       intel.employeeCount,
       intel.materialityByFieldId
