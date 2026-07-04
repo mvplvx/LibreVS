@@ -1,0 +1,18 @@
+[package]
+name = "librevs-deployment-manager"
+version = "0.1.0"
+description = "LibreVS Deployment Manager — infrastructure for self-hosted VSME reporting"
+authors = ["LibreVS"]
+edition = "2021"
+
+[lib]
+name = "librevs_deployment_manager_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-shell = "2"

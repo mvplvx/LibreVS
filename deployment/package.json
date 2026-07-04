@@ -1,0 +1,39 @@
+{
+  "name": "librevs-deployment-manager",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.node.json && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "deployment:smoke": "tsx scripts/smoke-check.ts",
+    "lint": "eslint src ui"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.4.0",
+    "@tauri-apps/plugin-opener": "^2.2.6",
+    "@tauri-apps/plugin-shell": "^2.2.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@tauri-apps/cli": "^2.4.0",
+    "@types/node": "^20.19.0",
+    "@types/react": "^19.2.4",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.5.2",
+    "eslint": "^9.39.1",
+    "globals": "^16.2.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.46.2",
+    "vite": "^6.3.5"
+  }
+}

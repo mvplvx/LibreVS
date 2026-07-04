@@ -88,6 +88,24 @@ The application image runs `prisma migrate deploy` and seed via `scripts/docker-
 
 Override `DATABASE_URL` when using an external database. Set `LIBREVS_SEED_TEST_ENV=0` to skip the extended test seed on container start.
 
+## Deployment Manager
+
+The **LibreVS Deployment Manager** (`deployment/`) provides a desktop UI to start, monitor, and stop LibreVS without typing Docker commands. It supports:
+
+- **Personal installation** — local Docker on a laptop (`http://localhost:3000`)
+- **Organization — host server** — IT admin on the server/VM
+- **Organization — connect** — monitor a remote company-hosted URL
+
+```bash
+cd deployment
+npm install
+npm run tauri:dev
+```
+
+Full guide: [deployment/DEPLOYMENT_MANAGER.md](../deployment/DEPLOYMENT_MANAGER.md).
+
+Health monitoring uses the existing `GET /api/system-health` endpoint. The Deployment Manager is isolated from VSME application code.
+
 ## Prisma migrations
 
 Apply migrations on every deploy:

@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for LibreVS Deployment Manager",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "docker",
+          "cmd": "docker",
+          "args": true
+        },
+        {
+          "name": "test",
+          "cmd": "test",
+          "args": true
+        }
+      ]
+    }
+  ]
+}

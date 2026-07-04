@@ -67,6 +67,18 @@ docker compose up --build
 
 The container runs migrations and seed on first start. Configure `DATABASE_URL` via environment or compose overrides. See [docs/INSTALL.md](./docs/INSTALL.md).
 
+## Deployment Manager
+
+For a guided start/stop workflow without using Docker commands directly, use the **LibreVS Deployment Manager** (Phase 8.5):
+
+```bash
+cd deployment
+npm install
+npm run tauri:dev
+```
+
+See [deployment/DEPLOYMENT_MANAGER.md](./deployment/DEPLOYMENT_MANAGER.md) for personal, organization-host, and organization-connect modes.
+
 ## Prisma migrations
 
 After pulling a new release:
