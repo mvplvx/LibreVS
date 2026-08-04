@@ -214,7 +214,8 @@ jobs:
           $manifest | Set-Content -Encoding utf8 windows-artifact-manifest.txt
           Get-Content windows-artifact-manifest.txt
       - name: Publish Windows artifact manifest
-        if: success()
+        # Avoid opening a GitHub issue on every successful push; keep a public issue only when manually dispatched.
+        if: success() && github.event_name == 'workflow_dispatch'
         uses: actions/github-script@v7
         with:
           script: |

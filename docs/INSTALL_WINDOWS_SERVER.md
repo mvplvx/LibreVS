@@ -75,9 +75,14 @@ cd LibreVS
 
 ### 3. Install LibreVS Deployment Manager
 
-Install the Windows NSIS `.exe` or `.msi` from your LibreVS release / CI artifacts.
+Install the Windows NSIS `.exe` or `.msi` from LibreVS GitHub Actions artifacts (workflow **Deployment Manager**, artifact `librevs-deployment-manager-windows`).
 
-Until a published installer is available, a developer machine can build:
+Expected filenames for version 0.8.0:
+
+- `LibreVS_0.8.0_x64-setup.exe` (NSIS)
+- `LibreVS_0.8.0_x64_en-US.msi` (MSI)
+
+To rebuild locally on a developer machine:
 
 ```powershell
 cd C:\Apps\LibreVS\deployment
@@ -85,7 +90,7 @@ npm install
 npx tauri build --bundles nsis,msi
 ```
 
-**Note:** Unsigned builds may trigger Windows SmartScreen. That does not mean the app is downloading data externally; it means the binary is not code-signed yet.
+**Note:** CI and local builds are **unsigned**; Windows SmartScreen may warn. That does not mean the app is downloading data externally; it means the binary is not code-signed yet.
 
 Expect a Start Menu shortcut named **LibreVS**. The application window title is **LibreVS Deployment Manager**.
 
