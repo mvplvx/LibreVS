@@ -4,6 +4,10 @@ import path from "node:path";
 
 export default defineConfig({
   plugins: [react()],
+  // Keep CSS tooling local to deployment/ — do not inherit the app Tailwind PostCSS config.
+  css: {
+    postcss: path.resolve(__dirname, "postcss.config.mjs"),
+  },
   resolve: {
     alias: {
       "@deployment": path.resolve(__dirname, "src"),
