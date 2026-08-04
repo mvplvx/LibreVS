@@ -1,22 +1,51 @@
 # Install LibreVS on a Windows Server
 
-Guide for installing LibreVS on an organization-controlled **Windows server** (not a personal laptop). Aimed at administrators who may be new to open-source tooling.
+Guide for installing LibreVS on an organization-controlled **Windows host** (not a personal laptop). Aimed at administrators who may be new to open-source tooling.
 
 ## Product model
 
-- **Administrators** install Docker, place LibreVS files, and use **LibreVS Deployment Manager** on the host.
+- **Administrators** install a supported container runtime, place LibreVS files, and use **LibreVS Deployment Manager** on the host.
 - **Employees** open LibreVS only in a web browser (`http://SERVER:3000` or your HTTPS URL).
 - Employees do **not** install Deployment Manager, Node.js, or Rust.
 
-## Before you start
+## Choose a host architecture
 
-- Windows Server 2019/2022 or Windows 10/11 Pro used as a server
+| Host type | Container runtime | Notes |
+|-----------|-------------------|--------|
+| **Recommended for production servers** | **Linux VM/server + Docker Engine** | Stable server path; use Deployment Manager on Linux or administer with Compose as fallback |
+| **Windows pilot / small internal host** | Windows 10/11 Pro or Windows Server with **Docker Desktop** | Acceptable for pilots; Docker Desktop on Windows Server is **not** the universal production architecture |
+| **Windows Server + Docker Engine / Mirantis** | Verify current Microsoft/Docker support for your edition | Do not assume Docker Desktop is supported or preferred on every Windows Server SKU |
+
+Deployment Manager can manage Compose on a Windows host when Docker CLI works. Corporate production often prefers **Linux + Docker Engine**; plan that with IT when moving beyond pilots.
+
+### Personal or pilot Windows installation
+
+May use:
+
+- Windows 10/11
+- Docker Desktop
+- local browser
+- automatic Docker Desktop launch from Deployment Manager (best-effort)
+
+### Organization server deployment
+
+Requires:
+
+- a supported container runtime for that OS
+- networking, firewall, backups, and preferably HTTPS/reverse proxy
+- administrator operation of Deployment Manager (or equivalent Compose ops)
+
+Deployment Manager does **not** configure DNS, TLS certificates, reverse proxies, corporate firewalls, authentication, or backups.
+
+## Before you start (Windows pilot host)
+
+- Windows Server 2019/2022 or Windows 10/11 Pro used as a host
 - Administrator rights
 - Remote Desktop access
 - Internet access for Docker image downloads
 - ~4 GB RAM (8 GB recommended), ~20 GB free disk
 
-## First-time installation
+## First-time installation (Windows + Docker Desktop pilot)
 
 ### 1. Install WSL 2 and Docker Desktop
 
@@ -30,6 +59,8 @@ Guide for installing LibreVS on an organization-controlled **Windows server** (n
 docker --version
 docker compose version
 ```
+
+Confirm Docker Desktop licensing and Windows Server compatibility with your organization before production use.
 
 ### 2. Place LibreVS files
 
@@ -51,12 +82,12 @@ Until a published installer is available, a developer machine can build:
 ```powershell
 cd C:\Apps\LibreVS\deployment
 npm install
-npm run tauri:build
+npx tauri build --bundles nsis,msi
 ```
 
 **Note:** Unsigned builds may trigger Windows SmartScreen. That does not mean the app is downloading data externally; it means the binary is not code-signed yet.
 
-Create/confirm a Start Menu entry named **LibreVS**.
+Expect a Start Menu shortcut named **LibreVS**. The application window title is **LibreVS Deployment Manager**.
 
 ### 4. First launch on the server
 
@@ -85,7 +116,7 @@ From a client PC: `http://YOUR-SERVER-IP:3000`
 
 Administrators:
 
-1. Ensure Docker Desktop is running.
+1. Ensure the container runtime is running.
 2. Open Deployment Manager.
 3. Use Start / Stop / Restart / Open / diagnostics.
 
@@ -100,7 +131,8 @@ Employees:
 - [ ] Change default demo database passwords before production data
 - [ ] Prefer HTTPS via reverse proxy for production
 - [ ] Schedule PostgreSQL backups (`pg_dump`)
-- [ ] Restrict who can RDP to the server and stop LibreVS
+- [ ] Restrict who can RDP/SSH to the host and stop LibreVS
+- [ ] Confirm container runtime support for your production OS
 
 ## Advanced recovery (terminal)
 

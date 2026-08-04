@@ -118,14 +118,18 @@ No terminal commands are required for this path.
 
 ## 3. Organization server operation
 
-1. Install Docker and LibreVS files on the server.
+**Preferred production host:** Linux server or VM with **Docker Engine** (not Docker Desktop).
+
+**Windows pilots:** Windows 10/11 or Windows Server with Docker Desktop may be used for internal pilots. Docker Desktop on Windows Server is **not** the universal Community Edition production recommendation — confirm runtime support with IT. Details: [INSTALL_WINDOWS_SERVER.md](./INSTALL_WINDOWS_SERVER.md).
+
+1. Install a supported container runtime and LibreVS files on the server.
 2. Install Deployment Manager on the **host**.
 3. Choose **Organization — host server**.
 4. Set the URL employees will use (not `localhost`), for example `http://10.0.0.20:3000`.
 5. Administrators use Start / Stop / Restart / diagnostics.
 6. Employees open only the organization URL in a browser — they do **not** install Deployment Manager.
 
-Plan networking, backups, HTTPS, and access control with your IT team. See [INSTALL_WINDOWS_SERVER.md](./INSTALL_WINDOWS_SERVER.md).
+Plan networking, backups, HTTPS, and access control with your IT team. Deployment Manager does not configure DNS, TLS, reverse proxies, or firewalls.
 
 ---
 

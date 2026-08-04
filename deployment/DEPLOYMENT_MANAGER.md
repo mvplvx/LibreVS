@@ -106,14 +106,19 @@ Requires Node.js, Rust, and Tauri OS dependencies. End users must not be asked t
 
 ## Packaging and code signing
 
-| Platform | Bundle targets |
-|----------|----------------|
-| Windows | NSIS `.exe`, MSI |
-| Linux | AppImage, `.deb` |
+| Platform | Bundle targets (CI builds these per OS) |
+|----------|------------------------------------------|
+| Windows | NSIS `.exe`, MSI (`tauri build --bundles nsis,msi`) |
+| Linux | AppImage, `.deb` (`tauri build --bundles appimage,deb`) |
+
+Installed Start Menu / desktop shortcut product name: **LibreVS**.  
+Window title: **LibreVS Deployment Manager**.
 
 CI workflow: `.github/workflows/deployment-manager.yml`
 
 Windows artifacts from CI are **unsigned**. Windows SmartScreen may display a warning until LibreVS introduces code signing. Do not claim installers are trusted or signed unless they are.
+
+**Server note:** Prefer Linux + Docker Engine for production organization hosts. Windows + Docker Desktop is documented for pilots; see [docs/INSTALL_WINDOWS_SERVER.md](../docs/INSTALL_WINDOWS_SERVER.md).
 
 ## Advanced terminal fallback
 
