@@ -6,20 +6,6 @@
   "permissions": [
     "core:default",
     "opener:default",
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "docker",
-          "cmd": "docker",
-          "args": true
-        },
-        {
-          "name": "test",
-          "cmd": "test",
-          "args": true
-        }
-      ]
-    }
+    "dialog:default"
   ]
 }

@@ -1,24 +1,26 @@
 {
   "name": "librevs-deployment-manager",
-  "version": "0.1.0",
+  "version": "0.8.0",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.node.json && vite build",
+    "build": "tsc -p tsconfig.node.json --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "deployment:smoke": "tsx scripts/smoke-check.ts",
     "lint": "eslint src ui"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.4.0",
+    "@tauri-apps/plugin-dialog": "^2.2.0",
     "@tauri-apps/plugin-opener": "^2.2.6",
-    "@tauri-apps/plugin-shell": "^2.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
@@ -34,6 +36,7 @@
     "tsx": "^4.20.3",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.46.2",
-    "vite": "^6.3.5"
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
   }
 }

@@ -2,7 +2,7 @@ export function WelcomeHero() {
   return (
     <header className="hero">
       <p className="hero-kicker">LibreVS Deployment Manager</p>
-      <h1>Self-hosted VSME reporting platform</h1>
+      <h1>Official operational interface</h1>
       <p>
         LibreVS is a self-hosted VSME reporting platform. Your organization
         decides where LibreVS runs and retains full ownership of its data.

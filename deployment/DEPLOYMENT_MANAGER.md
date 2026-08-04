@@ -1,116 +1,84 @@
 # LibreVS Deployment Manager
 
-The **LibreVS Deployment Manager** is infrastructure for starting, monitoring, and administering a local or organization-hosted LibreVS deployment.
+The **LibreVS Deployment Manager** is the **official operational interface** for starting, stopping, restarting, and monitoring a self-hosted LibreVS deployment.
 
-LibreVS is **not** a desktop application. It is a **self-hosted, local-first VSME reporting platform**. The Deployment Manager orchestrates Docker and health checks — it never touches VSME compliance logic.
+LibreVS is **not** a desktop application. It is a self-hosted VSME reporting platform. Deployment Manager is infrastructure only — it never touches VSME compliance logic.
 
 ## Principles
 
-- **Digital sovereignty** — your data stays in your PostgreSQL database
-- **Self-hosted** — no cloud dependency or telemetry
-- **Open source** — AGPLv3, same as LibreVS
-- **Privacy by design** — no login, no usage tracking, no external reporting
+- Digital sovereignty — data stays in your PostgreSQL database
+- Self-hosted — no cloud dependency or telemetry
+- Open source — AGPLv3
+- Privacy by design — no login, no usage tracking, no external reporting
+
+## Who uses Deployment Manager
+
+| Role | Uses Deployment Manager? | Accesses LibreVS how? |
+|------|--------------------------|------------------------|
+| Personal / consultant | Yes (daily) | Browser opened by manager |
+| Server administrator | Yes (on the host) | Browser + manager status |
+| Ordinary employee | No | Organization URL in browser only |
+| Developer | Optional (`tauri:dev`) | Local Docker / `npm run dev` |
+
+## Installation boundary (Community Edition)
+
+Deployment Manager does **not** install Docker automatically and does **not** download LibreVS from the internet by itself.
+
+Accepted first-time model:
+
+1. Install Docker.
+2. Place LibreVS deployment files on the host (clone or extract release).
+3. Install Deployment Manager from the native installer (CI/release artifact).
+4. First launch: choose mode, select LibreVS folder, configure URL.
+5. Manager performs first image build (`docker compose up --build -d`) when needed.
+6. Later operation is handled through Deployment Manager — no terminal required for normal use.
+
+This is **not** a one-click full installer. Be transparent with operators about that boundary.
+
+## Daily personal use
+
+1. Open **LibreVS** from the Start Menu or desktop shortcut.
+2. Deployment Manager checks Docker and services.
+3. It starts LibreVS if needed and waits for `/api/system-health`.
+4. It opens the browser when configured.
+5. Leave the manager open as the status window, or minimize it.
+
+## Organization-host administration
+
+1. Administrator opens Deployment Manager on the server.
+2. Configure a non-localhost URL (`http://server-name:3000`, `https://esg.company.local`).
+3. Start / Stop / Restart / Retry / Open as needed.
+4. Stopping shows a confirmation (active users may lose access).
+5. Employees use only the organization URL in their browsers.
+
+## Organization-connect
+
+- No local Docker controls
+- Health-check and Open only
+- For workstations connecting to a hosted instance
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────┐
-│  LibreVS Deployment Manager (UI)    │
-│  deployment/ — isolated from app    │
-└──────────────┬──────────────────────┘
-               │ docker compose CLI
-               │ GET /api/system-health
-               ▼
-┌─────────────────────────────────────┐
-│  docker-compose.yml (unchanged)     │
-│  ┌─────────────┐  ┌──────────────┐  │
-│  │ librevs-app │  │ postgres:16  │  │
-│  │   :3000     │──│              │  │
-│  └─────────────┘  └──────────────┘  │
-└─────────────────────────────────────┘
+Deployment Manager (Tauri UI)
+        │  invoke (fixed commands)
+        ▼
+Rust command bridge (validate path, docker argv allowlist)
+        │
+        ├── docker compose up [-–build] -d
+        ├── docker compose down      (never -v)
+        ├── docker compose restart
+        └── docker compose ps
+        │
+        ▼
+LibreVS stack (docker-compose.yml) → GET /api/system-health
 ```
 
-The Deployment Manager lives in [`deployment/`](../deployment/) with its own `package.json`. It **must not** import code from `app/`, `lib/vsme/`, or `prisma/`.
+Configuration is stored in the OS application config directory as `deployment.json` (not in localStorage). It never stores database passwords or `.env` secrets.
 
-## Deployment modes
+## Health contract
 
-### Personal installation
-
-Typical user: consultant on a laptop.
-
-| Setting | Value |
-|---------|-------|
-| Mode | Personal installation |
-| Application URL | `http://localhost:3000` |
-| Docker | Managed locally |
-| Browser | Opens automatically when ready (optional) |
-
-### Organization — host server
-
-Typical user: internal IT administrator on the server or VM.
-
-| Setting | Value |
-|---------|-------|
-| Mode | Organization — host server |
-| Application URL | Configurable (`http://server-name:3000`, `https://esg.company.local`) |
-| Docker | Managed locally on the host |
-| Browser | Manual "Open LibreVS" button |
-
-### Organization — connect to server
-
-Typical user: consultant or employee accessing a company-hosted instance.
-
-| Setting | Value |
-|---------|-------|
-| Mode | Organization — connect to server |
-| Application URL | Remote URL (required) |
-| Docker | **Not** managed — connect-only |
-| Browser | Manual "Open LibreVS" button |
-
-This mode avoids requiring Docker on every workstation while preserving the same health monitoring workflow.
-
-## Getting started
-
-### Prerequisites
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) or Docker Engine + Compose plugin (for personal and organization-host modes)
-- [Rust](https://rustup.rs/) (to build the desktop shell)
-- Linux, Windows, or macOS
-
-### Run in development
-
-```bash
-cd deployment
-npm install
-npm run tauri:dev
-```
-
-Web-only UI preview (no Docker shell access):
-
-```bash
-npm run dev
-```
-
-### Build desktop app
-
-```bash
-cd deployment
-npm run tauri:build
-```
-
-Artifacts are written to `deployment/src-tauri/target/release/`.
-
-## Startup flow
-
-1. Check environment and deployment mode
-2. Check container runtime (personal / organization-host)
-3. Start containers if not running (`docker compose up -d`)
-4. Poll `GET /api/system-health` until ready
-5. Display status and offer **Open LibreVS**
-
-### Ready criteria
-
-LibreVS is considered available when:
+Ready when:
 
 ```json
 {
@@ -122,111 +90,66 @@ LibreVS is considered available when:
 }
 ```
 
-The Deployment Manager uses the existing [`/api/system-health`](../app/api/system-health/route.ts) endpoint — no separate `/api/health` route is required.
+Endpoint: `GET {targetUrl}/api/system-health`
 
-## Health monitoring
-
-| Diagnostic | Source |
-|------------|--------|
-| LibreVS running | HTTP 200 + `success` |
-| Database running | `data.databaseReachable` |
-| LibreVS version | `data.appVersion` |
-| Schema version | `data.schemaVersion` |
-| Migration status | `data.status` (`ok` / `degraded` / `error`) |
-| Container uptime | `docker compose ps` (host modes) |
-
-Technical details are available in the expandable **View diagnostics** section.
-
-## Configuration
-
-Settings are stored locally:
-
-- **Desktop / browser UI:** `localStorage` key `librevs-deployment-config`
-- **Node scripts:** `~/.config/librevs/deployment.json`
-
-Example:
-
-```json
-{
-  "mode": "personal",
-  "targetUrl": "http://localhost:3000",
-  "composeProjectDir": "/path/to/librevs",
-  "autoOpenBrowser": true
-}
-```
-
-Set **LibreVS project directory** to the folder containing `docker-compose.yml`.
-
-## Server deployment walkthrough
-
-1. Install Docker on the server or VM
-2. Clone LibreVS and configure environment (see [INSTALL.md](../docs/INSTALL.md))
-3. Run the Deployment Manager in **Organization — host server** mode on the server
-4. Set the application URL to the address users will use (hostname or IP)
-5. Workstations use **Organization — connect to server** with the same URL
-
-## Troubleshooting
-
-### Container runtime not installed
-
-Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and restart the Deployment Manager.
-
-### Container runtime not running
-
-Start Docker Desktop (or `sudo systemctl start docker` on Linux) and click **Retry**.
-
-### `docker-compose.yml` not found
-
-Set **LibreVS project directory** to the root of your LibreVS clone (the folder that contains `docker-compose.yml`).
-
-### Port 3000 already in use
-
-Stop the conflicting service or change the port mapping in `docker-compose.yml`.
-
-### Health check timeout
-
-- First start can take several minutes (migrations + seed)
-- Open **View diagnostics** for `databaseReachable` and migration status
-- Check container logs: `docker compose logs -f app`
-
-### Remote URL unreachable (organization-connect)
-
-- Verify the URL in a browser on the same network
-- Check VPN, firewall, and reverse-proxy configuration
-- Confirm LibreVS is running on the host server
-
-### Migration degraded
-
-LibreVS responded but `status` is not `ok`. Run migrations on the host:
-
-```bash
-docker compose exec app npx prisma migrate deploy
-```
-
-See [MIGRATION_GUIDE.md](../docs/MIGRATION_GUIDE.md).
-
-## Smoke test
-
-With LibreVS running:
+## Developer workflow
 
 ```bash
 cd deployment
-LIBREVS_BASE_URL=http://localhost:3000 npm run deployment:smoke
+npm install
+npm run tauri:dev
+npm run tauri:build
+npm test
 ```
 
-## Security
+Requires Node.js, Rust, and Tauri OS dependencies. End users must not be asked to install these.
 
-The Deployment Manager:
+## Packaging and code signing
 
-- Does **not** collect telemetry
-- Does **not** require login
-- Does **not** send deployment information externally
-- Does **not** create online dependencies
+| Platform | Bundle targets |
+|----------|----------------|
+| Windows | NSIS `.exe`, MSI |
+| Linux | AppImage, `.deb` |
 
-LibreVS remains fully self-hostable.
+CI workflow: `.github/workflows/deployment-manager.yml`
 
-## Related documentation
+Windows artifacts from CI are **unsigned**. Windows SmartScreen may display a warning until LibreVS introduces code signing. Do not claim installers are trusted or signed unless they are.
 
-- [INSTALL.md](../docs/INSTALL.md) — LibreVS installation
+## Advanced terminal fallback
+
+Use Docker Compose only for troubleshooting/recovery:
+
+```bash
+cd /path/to/LibreVS
+docker compose up --build -d
+docker compose ps
+docker compose logs -f app
+docker compose down          # preserves volumes
+```
+
+These are **not** the normal daily workflow.
+
+## Security notes
+
+- Docker operations run through fixed Rust commands after path validation.
+- Project directory must contain a LibreVS `docker-compose.yml`.
+- Browser open allows only `http` and `https`.
+- Diagnostics are sanitized (no secrets).
+- Restrictive CSP is enabled for the local UI.
+
+## Troubleshooting
+
+| Issue | Action |
+|-------|--------|
+| Docker not installed | Install Docker Desktop; Retry |
+| Docker not running | Start Docker Desktop; Retry |
+| Invalid folder | Select the LibreVS root (contains `docker-compose.yml`) |
+| First build slow/failed | Wait; check disk space; View diagnostics |
+| Health timeout | First start can take several minutes |
+| Remote URL unreachable | Check VPN/firewall/URL |
+
+## Related docs
+
+- [docs/INSTALL.md](../docs/INSTALL.md) — first-time installation
+- [docs/INSTALL_WINDOWS_SERVER.md](../docs/INSTALL_WINDOWS_SERVER.md) — Windows server
 - [README.md](../README.md) — project overview
-- [docker-compose.yml](../docker-compose.yml) — container stack

@@ -1,152 +1,196 @@
 # Install LibreVS
 
-Professional installation guide for self-hosted VSME reporting (RC1).
+Professional installation guide for self-hosted VSME reporting (Community Edition / RC1).
 
 ## What you are installing
 
-LibreVS is **local-first reporting infrastructure**. All sustainability data, materiality decisions, and export snapshots live in **your** PostgreSQL database. LibreVS does not operate a central cloud datastore for your reports.
+LibreVS is **local-first reporting infrastructure**. All sustainability data lives in **your** PostgreSQL database. There is no LibreVS cloud account and no telemetry.
 
-**No telemetry:** the application does not send usage analytics or tracking events to LibreVS-operated services.
+After the first installation, **LibreVS Deployment Manager** is the official way to start and manage LibreVS day to day. Ordinary users should not need PowerShell or Docker commands for normal operation.
+
+## Concepts
+
+| Concept | Meaning |
+|---------|---------|
+| **First-time installation** | Install Docker, place LibreVS files, install Deployment Manager, complete first-launch setup |
+| **Daily personal use** | Open LibreVS from Start Menu → manager starts services → browser opens |
+| **Organization server** | Administrator runs Deployment Manager on the host; employees use the browser URL only |
+| **Developer workflow** | Node/Rust/`tauri:dev` — for contributors only |
+| **Terminal fallback** | `docker compose` for recovery/troubleshooting only |
 
 ## Requirements
 
+### End-user / server host
+
+- Docker Desktop (Windows/macOS) or Docker Engine + Compose (Linux)
+- LibreVS deployment files (Git clone or release extract)
+- LibreVS Deployment Manager installer (from CI/release artifacts), once packaged builds are available
+
+### Developer machine (building Deployment Manager)
+
 - Node.js 20+
-- PostgreSQL 16+
-- npm
+- Rust + Cargo
+- Tauri OS prerequisites
 
-## Step-by-step (local)
+End users must **not** be instructed to install Node.js or Rust merely to run Deployment Manager.
 
-### 1. Clone and install
+---
+
+## 1. First-time installation
+
+### Step A — Install Docker
+
+Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine + Compose on Linux) and ensure it is running.
+
+### Step B — Place LibreVS files
 
 ```bash
 git clone https://github.com/mvplvx/LibreVS.git
 cd LibreVS
-npm install
 ```
 
-### 2. Environment
+Alternatively extract a release archive to a stable folder (for example `C:\Apps\LibreVS` or `/opt/librevs`).
+
+### Step C — Install Deployment Manager
+
+Prefer the native installer from GitHub Actions / Releases:
+
+- Windows: NSIS `.exe` or `.msi`
+- Linux: AppImage or `.deb`
+
+Until a signed release is published, developers can build locally:
+
+```bash
+cd deployment
+npm install
+npm run tauri:build
+```
+
+Installers from CI are **unsigned**; Windows SmartScreen may warn.
+
+### Step D — First launch
+
+1. Open **LibreVS** (Deployment Manager).
+2. Choose deployment mode (Personal / Organization-host / Organization-connect).
+3. For Personal or Organization-host: select the LibreVS folder (the one with `docker-compose.yml`).
+4. Confirm the application URL.
+5. Save and start — first run may **build** images (`--build`) and take several minutes.
+
+### Optional: bring up once with Compose (advanced)
+
+If you need to verify the stack before the manager is installed:
+
+```bash
+docker compose up --build -d
+```
+
+This is a **bootstrap/troubleshooting** path, not the normal daily workflow.
+
+### Local development (without Deployment Manager)
 
 ```bash
 cp .env.example .env
+npm install
+npx prisma migrate deploy
+npm run db:seed
+npm run dev
 ```
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `LIBREVS_LOG` | No | `1` = structured JSON logs |
-| `LIBREVS_GIT_SHA` | No | Short commit shown in footer (optional) |
-| `LIBREVS_PILOT_MODE` | No | Pilot banner (optional) |
-| `NEXT_PUBLIC_LIBREVS_PILOT_MODE` | No | Client pilot banner |
+| `LIBREVS_PILOT_MODE` | No | Pilot banner |
 
-Secrets must never be committed. LibreVS startup errors reference variable **names** only, not connection string values.
+---
 
-### 3. Database
+## 2. Daily personal use
+
+1. Start Docker Desktop if it is not already running (Deployment Manager will try to help on Windows).
+2. Open **LibreVS** from the Start Menu or desktop shortcut.
+3. Wait until status shows **LibreVS is ready**.
+4. Browser opens automatically when configured.
+5. Work in the web UI (`/vsme`, `/dashboard`).
+
+No terminal commands are required for this path.
+
+---
+
+## 3. Organization server operation
+
+1. Install Docker and LibreVS files on the server.
+2. Install Deployment Manager on the **host**.
+3. Choose **Organization — host server**.
+4. Set the URL employees will use (not `localhost`), for example `http://10.0.0.20:3000`.
+5. Administrators use Start / Stop / Restart / diagnostics.
+6. Employees open only the organization URL in a browser — they do **not** install Deployment Manager.
+
+Plan networking, backups, HTTPS, and access control with your IT team. See [INSTALL_WINDOWS_SERVER.md](./INSTALL_WINDOWS_SERVER.md).
+
+---
+
+## 4. Verify
+
+Health UI: `/system/health`  
+API: `GET /api/system-health`
 
 ```bash
-npx prisma migrate deploy
-npm run db:seed
+# Optional smoke against a running instance
+cd deployment
+LIBREVS_BASE_URL=http://localhost:3000 npm run deployment:smoke
 ```
 
-**`db:seed` creates:**
-
-- Demo organization and user
-- LibreVS Demo Company (120 employees, default currency)
-- 2025 reporting period with sample v2 datapoints
-
-Extended pilot data (two companies, incomplete exports):
-
-```bash
-npm run seed:test
-```
-
-### 4. Run
-
-```bash
-npm run dev
-```
-
-| URL | Purpose |
-|-----|---------|
-| `/vsme` | Reporting workspace |
-| `/dashboard` | Coverage and export |
-| `/system/health` | RC1 diagnostics |
-| `/system/backup` | Data safety guidance |
-
-### 5. Verify
+Or from the main app tree:
 
 ```bash
 npm run phase8:smoke
 ```
 
-## Docker installation
+---
 
-```bash
-docker compose up --build
-```
+## 5. Backup and upgrade
 
-The application image runs `prisma migrate deploy` and seed via `scripts/docker-entrypoint.sh`. Default compose includes PostgreSQL and sets pilot-related environment variables.
-
-Override `DATABASE_URL` when using an external database. Set `LIBREVS_SEED_TEST_ENV=0` to skip the extended test seed on container start.
-
-## Deployment Manager
-
-The **LibreVS Deployment Manager** (`deployment/`) provides a desktop UI to start, monitor, and stop LibreVS without typing Docker commands. It supports:
-
-- **Personal installation** — local Docker on a laptop (`http://localhost:3000`)
-- **Organization — host server** — IT admin on the server/VM
-- **Organization — connect** — monitor a remote company-hosted URL
-
-```bash
-cd deployment
-npm install
-npm run tauri:dev
-```
-
-Full guide: [deployment/DEPLOYMENT_MANAGER.md](../deployment/DEPLOYMENT_MANAGER.md).
-
-Health monitoring uses the existing `GET /api/system-health` endpoint. The Deployment Manager is isolated from VSME application code.
-
-## Prisma migrations
-
-Apply migrations on every deploy:
-
-```bash
-npx prisma migrate deploy
-```
-
-If startup reports schema version mismatch, ensure you are on a LibreVS release that targets VSME **2.0.0** and that migrations completed successfully.
-
-## Backup recommendation
-
-Before upgrades or schema migrations:
+Before upgrades:
 
 ```bash
 pg_dump "$DATABASE_URL" -Fc -f librevs-backup.dump
 ```
 
-Store backups according to your retention policy. LibreVS cannot recover lost database files from export PDFs alone.
+Upgrade outline:
 
-## Upgrade guidance
+1. Stop via Deployment Manager (or `docker compose down` — never use `-v` unless you intend to delete data)
+2. Back up PostgreSQL
+3. Update LibreVS files (`git pull` or new extract)
+4. Start via Deployment Manager (rebuilds only when images are missing)
 
-1. Stop the application (or put it in maintenance if you use a proxy)
-2. Backup PostgreSQL
-3. Pull the new release
-4. `npm install`
-5. `npx prisma migrate deploy`
-6. Start the application
-7. Run `npm run phase8:smoke`
+---
+
+## 6. Advanced terminal fallback
+
+```bash
+docker compose up --build -d
+docker compose ps
+docker compose logs -f app
+docker compose down
+```
+
+Do **not** run `docker compose down -v` unless you intentionally want to destroy database volumes.
+
+---
 
 ## Troubleshooting
 
 | Issue | Action |
 |-------|--------|
-| Startup throws on `DATABASE_URL` | Copy `.env.example` → `.env`; verify Postgres is running |
-| Startup throws on registry | Ensure full repository checkout; expect 264 fields |
-| Empty `/vsme` workspace | Run `npm run db:seed` or `npm run seed:test` |
-| Export blocked | Complete required material fields; use export audit on `/vsme` |
-| `/system/health` shows DB unreachable | Check network, credentials, and `DATABASE_URL` host |
-| Footer version stale after upgrade | Restart Node process after `prisma generate` |
+| Docker missing / not running | Install or start Docker Desktop; Retry in Deployment Manager |
+| Invalid LibreVS folder | Select the directory containing `docker-compose.yml` |
+| First build failed | Check disk/network; View diagnostics; Retry |
+| Health timeout | First start can take several minutes |
+| Empty `/vsme` | Seed may not have run; check container logs |
+| `/system/health` DB unreachable | Check Postgres container and `DATABASE_URL` |
+
+Full Deployment Manager guide: [deployment/DEPLOYMENT_MANAGER.md](../deployment/DEPLOYMENT_MANAGER.md).
 
 ## Export disclaimer
 
-LibreVS validates structural completeness against deterministic rules. Regulatory acceptance and legal adequacy remain your responsibility. See `/vsme/export-review` for export validation detail.
+LibreVS validates structural completeness against deterministic rules. Regulatory acceptance remains your responsibility.

@@ -1,121 +1,106 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DeploymentManager } from "@deployment/deploymentManager";
-import type {
-  DeploymentManagerSnapshot,
-  DeploymentMode,
-} from "@deployment/types";
-import { modeLabel } from "@deployment/environment";
-import { detectPlatform } from "@deployment/platform";
+import type { DeploymentManagerSnapshot } from "@deployment/types";
+import { detectBridge } from "@deployment/bridge";
+import { modeLabel } from "@deployment/types";
 import { WelcomeHero } from "./WelcomeHero";
 import { StatusPanel } from "./StatusPanel";
-import { ConfigPanel } from "./ConfigPanel";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
+import { SetupWizard } from "./SetupWizard";
 
 const DOCKER_DESKTOP_URL = "https://www.docker.com/products/docker-desktop/";
 
 export function App() {
   const manager = useMemo(
-    () => new DeploymentManager(undefined, detectPlatform()),
+    () => new DeploymentManager(detectBridge()),
     []
   );
 
-  const [snapshot, setSnapshot] = useState<DeploymentManagerSnapshot>(() =>
-    manager.getSnapshot()
+  const [snapshot, setSnapshot] = useState<DeploymentManagerSnapshot | null>(
+    null
   );
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    return manager.subscribe(setSnapshot);
+    const unsub = manager.subscribe(setSnapshot);
+    void manager.initialize().finally(() => setReady(true));
+    return unsub;
   }, [manager]);
 
-  const handleStart = useCallback(async () => {
-    setBusy(true);
-    try {
-      await manager.start();
-    } finally {
-      setBusy(false);
-    }
-  }, [manager]);
-
-  const handleStop = useCallback(async () => {
-    setBusy(true);
-    try {
-      await manager.stop();
-    } finally {
-      setBusy(false);
-    }
-  }, [manager]);
-
-  const handleOpen = useCallback(async () => {
-    await manager.openLibreVs();
-  }, [manager]);
-
-  const handleModeChange = useCallback(
-    (mode: DeploymentMode) => {
-      const updates = {
-        mode,
-        autoOpenBrowser: mode === "personal",
-        targetUrl:
-          mode === "personal"
-            ? "http://localhost:3000"
-            : snapshot.config.targetUrl,
-      };
-      manager.updateConfig(updates);
+  const run = useCallback(
+    async (fn: () => Promise<void>) => {
+      setBusy(true);
+      try {
+        await fn();
+      } finally {
+        setBusy(false);
+      }
     },
-    [manager, snapshot.config.targetUrl]
+    []
   );
 
-  const handleConfigChange = useCallback(
-    (partial: {
-      targetUrl?: string;
-      composeProjectDir?: string;
-      autoOpenBrowser?: boolean;
-    }) => {
-      manager.updateConfig(partial);
-    },
-    [manager]
-  );
+  if (!ready || !snapshot) {
+    return (
+      <div className="app">
+        <WelcomeHero />
+        <section className="card">
+          <p className="status-message">Loading Deployment Manager…</p>
+        </section>
+      </div>
+    );
+  }
 
-  const isActive =
-    snapshot.state !== "IDLE" &&
-    snapshot.state !== "ERROR" &&
-    snapshot.state !== "RUNNING";
+  if (snapshot.needsSetup) {
+    return (
+      <div className="app">
+        <WelcomeHero />
+        <SetupWizard
+          initial={snapshot.config}
+          onComplete={(config) => manager.completeSetup(config)}
+          onPickDirectory={() => manager.pickProjectDirectory()}
+          onValidateDirectory={(path) => manager.validateProjectDirectory(path)}
+        />
+        <footer className="footer">
+          Official LibreVS operational interface · No telemetry · Self-hosted
+        </footer>
+      </div>
+    );
+  }
+
   const showDockerHelp =
-    snapshot.state === "ERROR" &&
-    (snapshot.diagnostics.technicalDetails.docker as { errorCode?: string })
-      ?.errorCode === "docker_missing";
+    snapshot.diagnostics.errorCategory === "docker_missing" ||
+    snapshot.diagnostics.errorCategory === "daemon_stopped";
 
   return (
     <div className="app">
       <WelcomeHero />
 
-      <ConfigPanel
-        config={snapshot.config}
-        disabled={busy || isActive}
-        onModeChange={handleModeChange}
-        onConfigChange={handleConfigChange}
-      />
-
       <StatusPanel
         snapshot={snapshot}
         busy={busy}
-        onStart={handleStart}
-        onStop={handleStop}
-        onOpen={handleOpen}
+        onStart={() => run(() => manager.start())}
+        onStop={() => run(() => manager.stop())}
+        onRestart={() => run(() => manager.restart())}
+        onOpen={() => run(() => manager.openLibreVs())}
+        onResetSetup={() => run(() => manager.resetSetup())}
       />
 
       {snapshot.state === "ERROR" && snapshot.diagnostics.error && (
         <div className="card">
           <p className="error-message">{snapshot.diagnostics.error}</p>
+          {snapshot.diagnostics.nextStep && (
+            <p className="help">{snapshot.diagnostics.nextStep}</p>
+          )}
           {showDockerHelp && (
-            <p style={{ marginTop: "0.75rem", fontSize: "0.875rem" }}>
+            <p className="help">
               <a
                 className="help-link"
                 href={DOCKER_DESKTOP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Install Docker Desktop
+                Docker Desktop installation help
               </a>
             </p>
           )}
@@ -125,7 +110,8 @@ export function App() {
       <DiagnosticsPanel diagnostics={snapshot.diagnostics} />
 
       <footer className="footer">
-        {modeLabel(snapshot.config.mode)} · No telemetry · Self-hosted
+        {modeLabel(snapshot.config.mode)} · LibreVS Deployment Manager · No
+        telemetry
       </footer>
     </div>
   );

@@ -12,5 +12,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["scripts", "src/**/*.node.ts", "src/platform.node.ts"]
+  "include": ["scripts", "src/**/*.test.ts", "vitest.config.ts"]
 }

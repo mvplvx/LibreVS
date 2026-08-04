@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "LibreVS Deployment Manager",
-  "version": "0.1.0",
+  "version": "0.8.0",
   "identifier": "org.librevs.deployment-manager",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -13,27 +13,52 @@
     "windows": [
       {
         "title": "LibreVS Deployment Manager",
-        "width": 800,
-        "height": 720,
+        "width": 820,
+        "height": 760,
+        "minWidth": 640,
+        "minHeight": 560,
         "resizable": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http: https: ipc: tauri:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis", "msi", "appimage", "deb"],
+    "category": "Utility",
+    "shortDescription": "Start and manage self-hosted LibreVS",
+    "longDescription": "LibreVS Deployment Manager is the official operational interface for starting, stopping, and monitoring a self-hosted LibreVS VSME reporting deployment.",
+    "copyright": "Copyright LibreVS contributors. AGPL-3.0-only.",
+    "publisher": "LibreVS",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
-      "icons/128x128@2x.png"
-    ]
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      },
+      "wix": {
+        "language": "en-US"
+      }
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      },
+      "deb": {
+        "depends": []
+      }
+    }
   },
   "plugins": {
-    "shell": {
-      "open": true
+    "opener": {
+      "openUrls": true
     }
   }
 }

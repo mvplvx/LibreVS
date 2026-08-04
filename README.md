@@ -30,11 +30,31 @@ LibreVS is built for **digital sovereignty**: your data stays in your database. 
 
 ## Minimum requirements
 
+**Self-hosted runtime (typical):**
+
+- Docker Desktop or Docker Engine + Compose
+- LibreVS Deployment Manager (native installer) for day-to-day operation
+- ~512 MB RAM minimum; production sizing depends on concurrent users
+
+**Developer / non-Docker local stack:**
+
 - Node.js 20+
 - PostgreSQL 16+
-- ~512 MB RAM for development; production sizing depends on concurrent users
 
-## Quick start (local)
+## How you run LibreVS
+
+After first installation, **LibreVS Deployment Manager** is the official operational interface:
+
+1. Install Docker and place LibreVS files on disk (see [docs/INSTALL.md](./docs/INSTALL.md)).
+2. Install Deployment Manager from a release/CI installer (Windows NSIS/MSI or Linux AppImage/deb).
+3. Open **LibreVS** from the Start Menu — the manager starts services, waits for health, and opens the browser.
+4. Ordinary organization users open only the configured URL in a browser; they do not use Docker or Deployment Manager.
+
+End users do **not** need Node.js or Rust. Those are build-time tools for developers packaging Deployment Manager.
+
+Full guide: [deployment/DEPLOYMENT_MANAGER.md](./deployment/DEPLOYMENT_MANAGER.md) · Windows server: [docs/INSTALL_WINDOWS_SERVER.md](./docs/INSTALL_WINDOWS_SERVER.md)
+
+## Quick start (developers — local Node)
 
 ```bash
 git clone https://github.com/mvplvx/LibreVS.git
@@ -59,25 +79,24 @@ One command for database setup:
 npm run db:setup
 ```
 
-## Docker
+## Docker (bootstrap / recovery)
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
-The container runs migrations and seed on first start. Configure `DATABASE_URL` via environment or compose overrides. See [docs/INSTALL.md](./docs/INSTALL.md).
+Use Compose for first bootstrap or troubleshooting. Prefer Deployment Manager for normal daily start/stop. The container runs migrations and seed on first start. See [docs/INSTALL.md](./docs/INSTALL.md).
 
-## Deployment Manager
-
-For a guided start/stop workflow without using Docker commands directly, use the **LibreVS Deployment Manager** (Phase 8.5):
+## Developer: build Deployment Manager
 
 ```bash
 cd deployment
 npm install
-npm run tauri:dev
+npm run tauri:dev    # development
+npm run tauri:build  # native installers
 ```
 
-See [deployment/DEPLOYMENT_MANAGER.md](./deployment/DEPLOYMENT_MANAGER.md) for personal, organization-host, and organization-connect modes.
+CI packaging: `.github/workflows/deployment-manager.yml` (unsigned Windows artifacts may trigger SmartScreen until code signing is added).
 
 ## Prisma migrations
 
@@ -128,7 +147,9 @@ Startup validates `DATABASE_URL`, database connectivity, schema version `2.0.0`,
 
 ## Documentation
 
-- [docs/INSTALL.md](./docs/INSTALL.md) — installation and troubleshooting
+- [docs/INSTALL.md](./docs/INSTALL.md) — first-time install, daily use, org server
+- [docs/INSTALL_WINDOWS_SERVER.md](./docs/INSTALL_WINDOWS_SERVER.md) — Windows server guide
+- [deployment/DEPLOYMENT_MANAGER.md](./deployment/DEPLOYMENT_MANAGER.md) — operational interface
 - [docs/RC1.md](./docs/RC1.md) — release candidate notes and QA checklist
 - [docs/VSME_ARCHITECTURE.md](./docs/VSME_ARCHITECTURE.md) — registry and modules
 - [docs/EXPORT_SYSTEM.md](./docs/EXPORT_SYSTEM.md) — export artifacts
