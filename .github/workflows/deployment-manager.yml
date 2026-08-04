@@ -207,6 +207,40 @@ jobs:
           if (Test-Path src-tauri/target/release/bundle) {
             Get-ChildItem -Recurse src-tauri/target/release/bundle | Select-Object FullName, Length
           }
+          $manifest = @()
+          Get-ChildItem -Path src-tauri/target/release/bundle/nsis,src-tauri/target/release/bundle/msi -File -ErrorAction SilentlyContinue | ForEach-Object {
+            $manifest += ("{0}`t{1}" -f $_.Name, $_.Length)
+          }
+          $manifest | Set-Content -Encoding utf8 windows-artifact-manifest.txt
+          Get-Content windows-artifact-manifest.txt
+      - name: Publish Windows artifact manifest
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'deployment/windows-artifact-manifest.txt';
+            const lines = fs.existsSync(path) ? fs.readFileSync(path, 'utf8').trim() : '(missing)';
+            const body = [
+              '### Windows packaging succeeded',
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `Commit: ${context.sha}`,
+              `Artifact archive: librevs-deployment-manager-windows`,
+              '',
+              'Installer files (name + bytes):',
+              '```text',
+              lines,
+              '```',
+              '',
+              'Signing: unsigned (no code-signing certificate configured).',
+              'SmartScreen: Windows may show an unrecognized-app warning until the installer is signed.',
+            ].join('\n');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `ci: Windows Deployment Manager packaging succeeded (${context.sha.slice(0,7)})`,
+              body,
+            });
       - name: Upload Windows artifacts
         if: success()
         uses: actions/upload-artifact@v4
