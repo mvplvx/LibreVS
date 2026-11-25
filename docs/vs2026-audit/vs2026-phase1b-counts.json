@@ -1,0 +1,35 @@
+{
+  "existing_fields": 264,
+  "new_rows": 12,
+  "matrix_rows": 276,
+  "regulatory_primary_existing": {
+    "UNCHANGED": 105,
+    "MERGED": 63,
+    "APPLICABILITY_CHANGE": 48,
+    "REQUIREMENT_CHANGE": 13,
+    "SCOPE_CHANGE": 12,
+    "REMOVED": 10,
+    "UNIT_CHANGE": 9,
+    "SPLIT": 2,
+    "MOVED": 1,
+    "TEXT_CHANGE": 1
+  },
+  "summary": {
+    "TECHNICAL_ONLY": 105,
+    "REGULATORY_CHANGE": 149,
+    "REMOVED": 10,
+    "NEW": 12
+  },
+  "secondary_applicability_change": 9,
+  "primary_sum": 264,
+  "previous_audit_explanation": "MODIFY 237 excluded REMOVE 10 and UNVERIFIED 17 from 264. The class histogram on all rows included those unverified rows and the 12 new rows. 132+63+42+8+4+2+1=252 used the full logic count and the MODIFY-only text count.",
+  "annex_ii_rows": 23,
+  "annex_ii_included_le_10": 9,
+  "annex_ii_included_gt_10": 23,
+  "knowledge_hub_field_rows": 264,
+  "knowledge_hub_unique_urls_checked": 66,
+  "knowledge_hub_unique_publishable": 65,
+  "knowledge_hub_unique_not_publishable": 1,
+  "knowledge_hub_rows_without_deep_link": 48,
+  "knowledge_hub_publishable_field_rows": 215
+}

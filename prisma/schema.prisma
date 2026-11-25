@@ -56,12 +56,25 @@ model ReportingPeriod {
   /** VSME registry version active when the period was created. */
   schemaVersion String @default("2.0.0")
 
+  /**
+   * Explicit VS 2026 reporting option for this period.
+   * Null means the period is not configured. It is not Option A.
+   * The running VSME scope does not read this column.
+   */
+  vs2026ReportingOption String?
+  /**
+   * Paragraph 25 Comprehensive disclosure ids for Option A.
+   * Empty when the period is not configured or the option is Option B.
+   */
+  vs2026AdditionalComprehensiveDisclosures String[] @default([])
+
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
 
   sustainabilityDataPoints SustainabilityDataPoint[]
   fieldMateriality       VsmeFieldMateriality[]
   exportSnapshots        VsmeExportSnapshot[]
+  vs2026RepeatingRows    Vs2026RepeatingRow[]
 
   createdAt DateTime @default(now())
 }
@@ -129,6 +142,51 @@ model SustainabilityDataPoint {
   createdAt DateTime @default(now())
 
   @@unique([reportingPeriodId, fieldId])
+}
+
+/**
+ * One stable VS 2026 repeating-fact row.
+ * Unused by the running workspace, APIs, and exports.
+ * `position` is display order. The id is the identity.
+ * `parentRowId` names a B1 site for B5 and B6. It does not copy the site.
+ * The parent foreign key includes `reportingPeriodId`, so a child can name a
+ * parent only inside its own reporting period. It does not check `groupId`.
+ */
+model Vs2026RepeatingRow {
+  id                String   @id @default(cuid())
+  reportingPeriodId String
+  reportingPeriod   ReportingPeriod @relation(fields: [reportingPeriodId], references: [id], onDelete: Cascade)
+  groupId           String
+  parentRowId       String?
+  parentRow         Vs2026RepeatingRow?  @relation("Vs2026RepeatingParent", fields: [parentRowId, reportingPeriodId], references: [id, reportingPeriodId], onDelete: NoAction)
+  childRows         Vs2026RepeatingRow[] @relation("Vs2026RepeatingParent")
+  position          Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  values            Vs2026RepeatingValue[]
+
+  @@unique([id, reportingPeriodId])
+  @@index([reportingPeriodId, groupId, position])
+  @@index([parentRowId])
+}
+
+/**
+ * One cell on a repeating row.
+ * `dimensionMember` is empty when the fact has no dimension.
+ * A missing cell is the absence of a row, not the string "0".
+ */
+model Vs2026RepeatingValue {
+  id              String   @id @default(cuid())
+  rowId           String
+  row             Vs2026RepeatingRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  datapointId     String
+  dimensionMember String   @default("")
+  value           String
+  unit            String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([rowId, datapointId, dimensionMember])
 }
 
 /** Phase 6 — in-app feedback capture (no external integrations). */
