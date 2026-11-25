@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { Prisma } from "@prisma/client";
 
@@ -7,24 +6,6 @@ import { prisma } from "../../db/prisma";
 import { validateRepeatingParent } from "./repeatingIntegrity";
 
 class RollbackSignal extends Error {}
-
-const MIGRATION_SQL = readFileSync(
-  new URL(
-    "../../../prisma/migrations/20261125160000_vs2026_repeating_data/migration.sql",
-    import.meta.url,
-  ),
-  "utf8",
-);
-
-function migrationStatements(sql: string): string[] {
-  return sql
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("--"))
-    .join("\n")
-    .split(";")
-    .map((statement) => statement.trim())
-    .filter((statement) => statement.length > 0);
-}
 
 function isKnownRequest(error: unknown, code: string): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === code;
@@ -61,15 +42,15 @@ describe("VS 2026 repeating tables", () => {
       FROM "_prisma_migrations"
       WHERE migration_name = '20261125160000_vs2026_repeating_data'
     `;
-    assert.equal(migrationRows[0]?.count, 0);
+    assert.equal(migrationRows[0]?.count, 1);
+    const tableBefore = await prisma.$queryRaw<{ name: string | null }[]>`
+      SELECT to_regclass('"Vs2026RepeatingRow"')::text AS name
+    `;
+    assert.equal(tableBefore[0]?.name, '"Vs2026RepeatingRow"');
 
     try {
       await prisma.$transaction(
         async (tx) => {
-          for (const statement of migrationStatements(MIGRATION_SQL)) {
-            await tx.$executeRawUnsafe(statement);
-          }
-
           const company = await tx.company.findFirst({
             where: { organizationId: { not: null } },
           });
@@ -490,12 +471,13 @@ describe("VS 2026 repeating tables", () => {
     const tables = await prisma.$queryRaw<{ name: string | null }[]>`
       SELECT to_regclass('"Vs2026RepeatingRow"')::text AS name
     `;
-    assert.equal(tables[0]?.name, null);
+    assert.equal(tables[0]?.name, '"Vs2026RepeatingRow"');
     const migrationsAfter = await prisma.$queryRaw<{ count: number }[]>`
       SELECT COUNT(*)::int AS count
       FROM "_prisma_migrations"
       WHERE migration_name = '20261125160000_vs2026_repeating_data'
     `;
-    assert.equal(migrationsAfter[0]?.count, 0);
+    assert.equal(migrationsAfter[0]?.count, 1);
+    assert.equal(await prisma.vs2026RepeatingRow.count(), 0);
   });
 });

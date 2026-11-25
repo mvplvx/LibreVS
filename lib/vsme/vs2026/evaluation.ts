@@ -121,6 +121,9 @@ export type FactPresence =
 
 export type FactInput = {
   readonly datapointId: string;
+  /** Empty or omitted when the fact has no dimension. */
+  readonly dimensionMember?: string;
+  readonly unit?: string;
   readonly presence: FactPresence;
 };
 
@@ -245,6 +248,9 @@ export type AnnexIIEvaluation =
 export type DatapointEvaluation = {
   readonly datapointId: string;
   readonly rowId: string | null;
+  /** Energy-origin member for a dimensioned quantity. Null for every other fact. */
+  readonly dimensionMember: string | null;
+  readonly recordedUnit: string | null;
   readonly disclosureId: string;
   readonly inReportingScope: boolean;
   readonly scope: ScopeStatus;
@@ -321,13 +327,36 @@ export function evaluateVS2026ReportingState(input: EvaluationInput): ReportEval
   const applicabilityAssessments = input.applicabilityAssessments ?? [];
 
   const scalars = new Map<string, FactInput>();
+  const dimensioned = new Map<string, FactInput>();
+  const duplicateDimensionKeys = new Set<string>();
   const ignoredFactIds: string[] = [];
   for (const fact of facts) {
+    const member = fact.dimensionMember?.trim() ?? "";
     if (!DATAPOINT_BY_ID.has(fact.datapointId)) {
-      ignoredFactIds.push(fact.datapointId);
+      ignoredFactIds.push(member === "" ? fact.datapointId : `${fact.datapointId}:${member}`);
       continue;
     }
-    scalars.set(fact.datapointId, fact);
+    if (member === "") {
+      const scalarDatapoint = DATAPOINT_BY_ID.get(fact.datapointId);
+      if (scalarDatapoint?.value.kind === "DIMENSIONED_QUANTITY") {
+        ignoredFactIds.push(fact.datapointId);
+        continue;
+      }
+      scalars.set(fact.datapointId, fact);
+      continue;
+    }
+    const datapoint = DATAPOINT_BY_ID.get(fact.datapointId);
+    if (!datapoint || !originMembers(datapoint).includes(member)) {
+      ignoredFactIds.push(`${fact.datapointId}:${member}`);
+      continue;
+    }
+    const key = dimensionKey(fact.datapointId, member);
+    if (dimensioned.has(key) || duplicateDimensionKeys.has(key)) {
+      duplicateDimensionKeys.add(key);
+      dimensioned.delete(key);
+      continue;
+    }
+    dimensioned.set(key, fact);
   }
 
   const rowsByGroup = new Map<string, RepeatingRowInput[]>();
@@ -351,6 +380,8 @@ export function evaluateVS2026ReportingState(input: EvaluationInput): ReportEval
 
   const context: EvaluationContext = {
     scalars,
+    dimensioned,
+    duplicateDimensionKeys,
     rowsByGroup,
     omissions,
     applicabilityAssessments,
@@ -364,7 +395,13 @@ export function evaluateVS2026ReportingState(input: EvaluationInput): ReportEval
     if (datapoint.repeatingGroupId) {
       continue;
     }
-    datapoints.push(evaluateDatapoint(context, datapoint, null, false));
+    if (datapoint.value.kind === "DIMENSIONED_QUANTITY") {
+      for (const member of originMembers(datapoint)) {
+        datapoints.push(evaluateDatapoint(context, datapoint, null, false, member));
+      }
+      continue;
+    }
+    datapoints.push(evaluateDatapoint(context, datapoint, null, false, null));
   }
 
   for (const group of GROUPS) {
@@ -388,6 +425,10 @@ export function evaluateVS2026ReportingState(input: EvaluationInput): ReportEval
     const byId = left.datapointId.localeCompare(right.datapointId);
     if (byId !== 0) {
       return byId;
+    }
+    const byDimension = (left.dimensionMember ?? "").localeCompare(right.dimensionMember ?? "");
+    if (byDimension !== 0) {
+      return byDimension;
     }
     return (left.rowId ?? "").localeCompare(right.rowId ?? "");
   });
@@ -428,6 +469,8 @@ type ResolvedConfiguration = {
 
 type EvaluationContext = {
   readonly scalars: ReadonlyMap<string, FactInput>;
+  readonly dimensioned: ReadonlyMap<string, FactInput>;
+  readonly duplicateDimensionKeys: ReadonlySet<string>;
   readonly rowsByGroup: ReadonlyMap<string, readonly RepeatingRowInput[]>;
   readonly omissions: readonly OmissionClaimInput[];
   readonly applicabilityAssessments: readonly ExplicitApplicabilityInput[];
@@ -532,16 +575,23 @@ function evaluateDatapoint(
   datapoint: Vs2026Datapoint,
   row: RepeatingRowInput | null,
   emptyOpenGroup: boolean,
+  dimensionMember: string | null = null,
 ): DatapointEvaluation {
   const scope = scopeFor(context, datapoint.disclosure);
   const condition = resolveApplicability(context, datapoint, row);
   const legalApplicability = legalApplicabilityFor(datapoint, condition.applicability);
   const employeeSizeTreatment = sizeTreatmentFor(datapoint, context.size);
-  const value = readValue(context, datapoint, row);
+  const value = readValue(context, datapoint, row, dimensionMember);
   const omission = resolveOmission(context, datapoint.id, row?.rowId ?? null);
   const annexII = annexFor(datapoint, context.size.category);
   const completionTarget = isCompletionTarget(datapoint);
   const reasons = [...condition.reasons];
+  if (
+    dimensionMember &&
+    context.duplicateDimensionKeys.has(dimensionKey(datapoint.id, dimensionMember))
+  ) {
+    reasons.push("DUPLICATE_LOGICAL_FACT");
+  }
 
   let completionStatus: CompletionStatus;
   let exportInclusion: ExportInclusion;
@@ -701,6 +751,8 @@ function evaluateDatapoint(
   return Object.freeze({
     datapointId: datapoint.id,
     rowId: row?.rowId ?? null,
+    dimensionMember,
+    recordedUnit: value.unit,
     disclosureId: datapoint.disclosure,
     inReportingScope: scope.inReportingScope,
     scope: scope.scope,
@@ -845,6 +897,7 @@ type ReadValue = {
   readonly status: ValueStatus;
   readonly recorded: string | null;
   readonly present: boolean;
+  readonly unit: string | null;
   readonly conflictingOption: boolean;
   readonly siteRowId: string | null;
 };
@@ -853,10 +906,24 @@ function readValue(
   context: EvaluationContext,
   datapoint: Vs2026Datapoint,
   row: RepeatingRowInput | null,
+  dimensionMember: string | null,
 ): ReadValue {
+  if (
+    dimensionMember &&
+    context.duplicateDimensionKeys.has(dimensionKey(datapoint.id, dimensionMember))
+  ) {
+    return {
+      status: "INVALID",
+      recorded: null,
+      present: false,
+      unit: null,
+      conflictingOption: false,
+      siteRowId: null,
+    };
+  }
   if (datapoint.id === "B1_MODULE_OPTION" && context.configuration.resolution) {
     const option = context.configuration.resolution.reportingOption;
-    const supplied = factFor(context, datapoint.id, row);
+    const supplied = factFor(context, datapoint.id, row, dimensionMember);
     const suppliedMember =
       supplied?.presence.kind === "PRESENT" && supplied.presence.literal.kind === "ENUMERATION"
         ? supplied.presence.literal.memberId
@@ -865,17 +932,19 @@ function readValue(
       status: "PRESENT",
       recorded: option,
       present: true,
+      unit: null,
       conflictingOption: suppliedMember !== null && suppliedMember !== option,
       siteRowId: null,
     };
   }
 
-  const fact = factFor(context, datapoint.id, row);
+  const fact = factFor(context, datapoint.id, row, dimensionMember);
   const status = valueStatusOf(fact);
   return {
     status,
     recorded: recordedValueOf(fact, status),
     present: status === "PRESENT" || status === "REPORTED_ZERO" || status === "REPORTED_FALSE",
+    unit: recordedUnitOf(fact),
     conflictingOption: false,
     siteRowId: siteRowIdOf(fact),
   };
@@ -885,11 +954,35 @@ function factFor(
   context: EvaluationContext,
   datapointId: string,
   row: RepeatingRowInput | null,
+  dimensionMember: string | null,
 ): FactInput | undefined {
   if (row) {
-    return row.cells.find((cell) => cell.datapointId === datapointId);
+    return row.cells.find((cell) => {
+      const member = cell.dimensionMember?.trim() ?? "";
+      return cell.datapointId === datapointId && member === (dimensionMember ?? "");
+    });
+  }
+  if (dimensionMember) {
+    return context.dimensioned.get(dimensionKey(datapointId, dimensionMember));
   }
   return context.scalars.get(datapointId);
+}
+
+function originMembers(datapoint: Vs2026Datapoint): readonly string[] {
+  if (datapoint.value.kind !== "DIMENSIONED_QUANTITY") {
+    return [];
+  }
+  const axis = datapoint.value.axes.find((item) => item.id === "ENERGY_ORIGIN");
+  return axis?.legalMembers ?? [];
+}
+
+function dimensionKey(datapointId: string, member: string): string {
+  return `${datapointId}\u0000${member}`;
+}
+
+function recordedUnitOf(fact: FactInput | undefined): string | null {
+  const unit = fact?.unit?.trim() ?? "";
+  return unit === "" ? null : unit;
 }
 
 function valueStatusOf(fact: FactInput | undefined): ValueStatus {
@@ -1423,7 +1516,7 @@ function enumMember(
   datapointId: string,
   row: RepeatingRowInput | null,
 ): string | null {
-  const fact = factFor(context, datapointId, row);
+  const fact = factFor(context, datapointId, row, null);
   if (!fact || fact.presence.kind !== "PRESENT" || fact.presence.literal.kind !== "ENUMERATION") {
     return null;
   }

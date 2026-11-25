@@ -894,3 +894,163 @@ describe("disclosure-specific restrictions and site references", () => {
     assert.equal(report.reportingOption, "OPTION_A");
   });
 });
+
+function energyFact(
+  datapointId: string,
+  dimensionMember: string,
+  value: number,
+  unit = "MWh",
+): FactInput {
+  return {
+    datapointId,
+    dimensionMember,
+    unit,
+    presence: { kind: "PRESENT", literal: { kind: "NUMBER", value } },
+  };
+}
+
+function dimension(
+  report: ReportEvaluation,
+  datapointId: string,
+  dimensionMember: string,
+): DatapointEvaluation {
+  const found = report.datapoints.find(
+    (item) => item.datapointId === datapointId && item.dimensionMember === dimensionMember,
+  );
+  assert.ok(found, `${datapointId} / ${dimensionMember}`);
+  return found;
+}
+
+describe("dimensioned B3 energy facts", () => {
+  const electricity = "B3_ENERGY_CONSUMPTION_FROM_ELECTRICITY";
+  const fuels = "B3_ENERGY_CONSUMPTION_FROM_FUELS";
+
+  it("keeps carriers and energy origins distinct and does not sum them", () => {
+    const report = evaluate({
+      configuration: optionA(),
+      employeeSize: measured(11),
+      facts: [
+        numberFact("B3_TOTAL_ENERGY_CONSUMPTION_MWH", 15),
+        enumeration("B3_ENERGY_BREAKDOWN_INFORMATION", "CAN_OBTAIN"),
+        energyFact(electricity, "Renewable energy", 10),
+        energyFact(electricity, "Non-renewable energy", 4),
+        energyFact(fuels, "Renewable energy", 0),
+        energyFact(fuels, "Non-renewable energy", 3),
+      ],
+    });
+    assert.deepEqual(
+      report.datapoints
+        .filter((item) => item.datapointId === electricity)
+        .map((item) => item.dimensionMember),
+      ["Non-renewable energy", "Renewable energy", "Total"],
+    );
+    assert.equal(dimension(report, electricity, "Renewable energy").recordedValue, "10");
+    assert.equal(dimension(report, electricity, "Renewable energy").recordedUnit, "MWh");
+    assert.equal(dimension(report, electricity, "Non-renewable energy").recordedValue, "4");
+    assert.equal(dimension(report, electricity, "Total").valueStatus, "MISSING");
+    assert.equal(dimension(report, electricity, "Total").recordedValue, null);
+    assert.equal(dimension(report, fuels, "Renewable energy").valueStatus, "REPORTED_ZERO");
+    assert.equal(dimension(report, fuels, "Renewable energy").recordedValue, "0");
+    assert.equal(dimension(report, fuels, "Non-renewable energy").recordedValue, "3");
+    assert.equal(dimension(report, fuels, "Total").valueStatus, "MISSING");
+    assert.equal(find(report, "B3_TOTAL_ENERGY_CONSUMPTION_MWH").recordedValue, "15");
+    assert.equal(find(report, "B3_TOTAL_ENERGY_CONSUMPTION_MWH").dimensionMember, null);
+    assert.equal(report.ignoredGroupIds.includes(electricity), false);
+    const repeated = evaluate({
+      configuration: optionA(),
+      employeeSize: measured(11),
+      facts: [
+        energyFact(fuels, "Non-renewable energy", 3),
+        energyFact(electricity, "Non-renewable energy", 4),
+        enumeration("B3_ENERGY_BREAKDOWN_INFORMATION", "CAN_OBTAIN"),
+        energyFact(electricity, "Renewable energy", 10),
+        numberFact("B3_TOTAL_ENERGY_CONSUMPTION_MWH", 15),
+        energyFact(fuels, "Renewable energy", 0),
+      ],
+    });
+    assert.deepEqual(repeated.datapoints, report.datapoints);
+  });
+
+  it("rejects a duplicate logical cell and an unknown member", () => {
+    const report = evaluate({
+      configuration: optionA(),
+      employeeSize: measured(11),
+      facts: [
+        enumeration("B3_ENERGY_BREAKDOWN_INFORMATION", "CAN_OBTAIN"),
+        energyFact(electricity, "Renewable energy", 10),
+        energyFact(electricity, "Renewable energy", 12),
+        energyFact(electricity, "Solar", 1),
+      ],
+    });
+    const renewable = dimension(report, electricity, "Renewable energy");
+    assert.equal(renewable.valueStatus, "INVALID");
+    assert.equal(renewable.recordedValue, null);
+    assert.equal(renewable.reasons.includes("DUPLICATE_LOGICAL_FACT"), true);
+    assert.equal(renewable.completionStatus, "REQUIRED_MISSING");
+    assert.equal(report.ignoredFactIds.includes(`${electricity}:Solar`), true);
+    assert.equal(dimension(report, electricity, "Non-renewable energy").valueStatus, "MISSING");
+  });
+
+  it("keeps total energy when breakdown members are not applicable", () => {
+    const withheld = evaluate({
+      configuration: optionA(),
+      employeeSize: measured(11),
+      facts: [enumeration("B3_ENERGY_BREAKDOWN_INFORMATION", "CANNOT_OBTAIN")],
+    });
+    assert.equal(dimension(withheld, electricity, "Renewable energy").completionStatus, "NOT_APPLICABLE");
+    assert.equal(dimension(withheld, fuels, "Total").completionStatus, "NOT_APPLICABLE");
+    assert.equal(find(withheld, "B3_TOTAL_ENERGY_CONSUMPTION_MWH").completionStatus, "REQUIRED_MISSING");
+
+    const unassessed = evaluate({
+      configuration: optionA(),
+      employeeSize: measured(8),
+      facts: [],
+    });
+    assert.equal(
+      dimension(unassessed, electricity, "Total").completionStatus,
+      "BLOCKED_UNASSESSED",
+    );
+    assert.equal(
+      find(unassessed, "B3_TOTAL_ENERGY_CONSUMPTION_MWH").completionStatus,
+      "VOLUNTARY_MISSING",
+    );
+  });
+
+  it("rejects a missing or different measurement basis", () => {
+    const missingBasis = evaluate({
+      configuration: optionA(),
+      employeeSize: {
+        status: "MEASURED",
+        reportingPeriodId: "period-1",
+        employeeMeasure: 8,
+        measureKind: "",
+      },
+    });
+    assert.equal(missingBasis.employeeSizeRejection, "MEASURE_NOT_EXPLICIT");
+    assert.equal(missingBasis.employeeCategory, null);
+    const nonNumeric = evaluate({
+      configuration: optionA(),
+      employeeSize: measured(Number.NaN),
+    });
+    assert.equal(nonNumeric.employeeSizeRejection, "NON_FINITE_EMPLOYEE_MEASURE");
+    const negative = evaluate({
+      configuration: optionA(),
+      employeeSize: measured(-1),
+    });
+    assert.equal(negative.employeeSizeRejection, "NEGATIVE_EMPLOYEE_MEASURE");
+    const eight = evaluate({ configuration: optionA(), employeeSize: measured(8) });
+    const eleven = evaluate({ configuration: optionA(), employeeSize: measured(11) });
+    assert.equal(
+      find(eight, "B7_APPLIES_CIRCULAR_ECONOMY_PRINCIPLES").completionStatus,
+      "VOLUNTARY_MISSING",
+    );
+    assert.equal(
+      find(eleven, "B7_APPLIES_CIRCULAR_ECONOMY_PRINCIPLES").completionStatus,
+      "REQUIRED_MISSING",
+    );
+    const aboveFormerGate = evaluate({ configuration: optionA(), employeeSize: measured(500) });
+    assert.equal(aboveFormerGate.reportingOption, "OPTION_A");
+    assert.equal(aboveFormerGate.employeeCategory, "EMPLOYEES_GT_10");
+    assert.equal(aboveFormerGate.fullComprehensiveExpected, false);
+  });
+});
