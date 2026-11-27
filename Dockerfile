@@ -7,9 +7,12 @@ FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Build-time only: satisfies prisma.config.ts typecheck; not used at runtime.
+# Build-time only: satisfies prisma.config.ts and the auth module import.
+# The runner does not keep this placeholder. Set BETTER_AUTH_SECRET at runtime.
 ARG DATABASE_URL=postgresql://librevs:librevs@localhost:5432/librevs?schema=public
 ENV DATABASE_URL=${DATABASE_URL}
+ENV BETTER_AUTH_SECRET=docker-build-placeholder-secret-32chars-min
+ENV BETTER_AUTH_URL=http://localhost:3000
 RUN npx prisma generate
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build

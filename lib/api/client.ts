@@ -60,11 +60,28 @@ export async function parseApiResponse<T>(res: Response): Promise<T> {
   return body.data;
 }
 
+function redirectToLogin(status: number): void {
+  if (status !== 401 || typeof window === "undefined") {
+    return;
+  }
+  if (window.location.pathname.startsWith("/login")) {
+    return;
+  }
+  const next = `${window.location.pathname}${window.location.search}`;
+  window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+}
+
+async function apiFetch(url: string, init: RequestInit): Promise<Response> {
+  const res = await fetch(url, { ...init, credentials: "same-origin" });
+  redirectToLogin(res.status);
+  return res;
+}
+
 export async function apiGet<T>(
   url: string,
   init?: Omit<RequestInit, "method" | "body">
 ): Promise<T> {
-  const res = await fetch(url, { ...init, method: "GET" });
+  const res = await apiFetch(url, { ...init, method: "GET" });
   return parseApiResponse<T>(res);
 }
 
@@ -73,7 +90,7 @@ export async function apiPost<T>(
   body?: unknown,
   init?: Omit<RequestInit, "method" | "body">
 ): Promise<T> {
-  const res = await fetch(url, {
+  const res = await apiFetch(url, {
     ...init,
     method: "POST",
     headers: {
@@ -90,7 +107,7 @@ export async function apiPatch<T>(
   body?: unknown,
   init?: Omit<RequestInit, "method" | "body">
 ): Promise<T> {
-  const res = await fetch(url, {
+  const res = await apiFetch(url, {
     ...init,
     method: "PATCH",
     headers: {
@@ -107,7 +124,7 @@ export async function apiPut<T>(
   body?: unknown,
   init?: Omit<RequestInit, "method" | "body">
 ): Promise<T> {
-  const res = await fetch(url, {
+  const res = await apiFetch(url, {
     ...init,
     method: "PUT",
     headers: {
@@ -123,6 +140,6 @@ export async function apiDelete<T>(
   url: string,
   init?: Omit<RequestInit, "method" | "body">
 ): Promise<T> {
-  const res = await fetch(url, { ...init, method: "DELETE" });
+  const res = await apiFetch(url, { ...init, method: "DELETE" });
   return parseApiResponse<T>(res);
 }

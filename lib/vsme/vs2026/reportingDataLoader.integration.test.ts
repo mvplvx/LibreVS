@@ -15,9 +15,7 @@ function isKnownRequest(error: unknown, code: string): boolean {
 
 describe("VS 2026 reporting data loader", () => {
   it("loads one organisation's period into an evaluation and hides every other period", async () => {
-    const beforePeriods = await prisma.reportingPeriod.count();
-    const beforeDatapoints = await prisma.sustainabilityDataPoint.count();
-    const beforeCompanies = await prisma.company.count();
+    const createdPeriodIds: string[] = [];
 
     try {
       await prisma.$transaction(async (tx) => {
@@ -98,6 +96,7 @@ describe("VS 2026 reporting data loader", () => {
         const otherPeriod = await tx.reportingPeriod.create({
           data: { year, companyId: otherCompany.id, schemaVersion: "2.0.0" },
         });
+        createdPeriodIds.push(period.id, otherPeriod.id);
         const otherSite = await tx.vs2026RepeatingRow.create({
           data: { reportingPeriodId: otherPeriod.id, groupId: "B1_SITE", position: 0 },
         });
@@ -358,10 +357,12 @@ describe("VS 2026 reporting data loader", () => {
       }
     }
 
-    assert.equal(await prisma.reportingPeriod.count(), beforePeriods);
-    assert.equal(await prisma.sustainabilityDataPoint.count(), beforeDatapoints);
-    assert.equal(await prisma.company.count(), beforeCompanies);
-    assert.equal(await prisma.vs2026RepeatingRow.count(), 0);
+    for (const id of createdPeriodIds) {
+      assert.equal(await prisma.reportingPeriod.count({ where: { id } }), 0);
+      assert.equal(await prisma.vs2026RepeatingRow.count({ where: { reportingPeriodId: id } }), 0);
+      assert.equal(await prisma.sustainabilityDataPoint.count({ where: { reportingPeriodId: id } }), 0);
+    }
+    assert.equal(await prisma.company.count({ where: { name: "vs03-other-company" } }), 0);
   });
 
   it("returns a database failure without the thrown detail", async () => {

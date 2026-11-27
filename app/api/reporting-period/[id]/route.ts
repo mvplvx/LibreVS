@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { getUser } from "@/lib/auth";
+import { requireApiContext } from "@/lib/auth";
 import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
 import { apiError, apiSuccess } from "@/lib/api/response";
 
@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   return withApiHandler(async () => {
-    const { organizationId } = getUser(req);
+    const { organizationId } = await requireApiContext(req);
     const id = await resolveRouteId(params);
     if (!id) {
       return apiError("Reporting period id is required", 400);

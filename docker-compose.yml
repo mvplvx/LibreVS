@@ -35,6 +35,8 @@ services:
       LIBREVS_PILOT_MODE: "1"
       NEXT_PUBLIC_LIBREVS_PILOT_MODE: "true"
       NODE_ENV: production
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET to a random string of at least 32 characters}
 
 volumes:
   librevs_pgdata:

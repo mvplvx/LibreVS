@@ -133,6 +133,8 @@ export type PersistedRepeatingValue = {
   readonly dimensionMember: string;
   readonly value: string;
   readonly unit: string | null;
+  readonly omissionConditionsAssessed?: boolean;
+  readonly omissionReassessedForPeriod?: boolean;
 };
 
 export type PersistedRepeatingRow = {
@@ -339,8 +341,8 @@ export function mapPersistedReportingSnapshot(
         omissionClaims.push({
           datapointId: omittedId,
           reason: cell.dimensionMember as "22(a)" | "22(b)" | "22(c)" | "22(d)",
-          reassessedForPeriod: false,
-          conditionsAssessed: false,
+          reassessedForPeriod: cell.omissionReassessedForPeriod === true,
+          conditionsAssessed: cell.omissionConditionsAssessed === true,
         });
       }
 

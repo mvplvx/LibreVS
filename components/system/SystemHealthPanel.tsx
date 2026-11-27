@@ -124,10 +124,8 @@ export function SystemHealthPanel() {
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Legacy rows (sample)</dt>
-              <dd className="font-medium">
-                {health.legacyFieldsDetected ? "detected" : "none"}
-              </dd>
+              <dt className="text-slate-500">Reporting rows</dt>
+              <dd className="font-medium">not inspected</dd>
             </div>
             <div>
               <dt className="text-slate-500">Export engine</dt>

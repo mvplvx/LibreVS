@@ -47,7 +47,9 @@ async function seedBase(): Promise<void> {
 async function main(): Promise<void> {
   await seedBase();
   await seedVsmeDemo(prisma, { includeSampleData: true });
-  console.log("db:seed complete — open http://localhost:3000/vsme");
+  console.log(
+    "db:seed complete. The demo user has no password and cannot sign in. Provision an account with scripts/provision-auth-user.ts, then open http://localhost:3000/login",
+  );
 }
 
 main()

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { getUser } from "@/lib/auth";
+import { requireApiContext } from "@/lib/auth";
 import { findCompanyInOrganization } from "@/lib/api/organizationScope";
 import { withApiHandler, parseJsonBody } from "@/lib/api/handler";
 import { apiError, apiSuccess, formatZodError } from "@/lib/api/response";
@@ -8,7 +8,7 @@ import { VSME_SCHEMA_VERSION } from "@/lib/vsme/schemaVersion";
 
 export async function GET(req: Request) {
   return withApiHandler(async () => {
-    const { organizationId } = getUser(req);
+    const { organizationId } = await requireApiContext(req);
 
     const data = await prisma.reportingPeriod.findMany({
       where: { company: { organizationId } },
@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   return withApiHandler(async () => {
-    const { organizationId } = getUser(req);
+    const { organizationId } = await requireApiContext(req);
     const body = await parseJsonBody(req);
     if (body === null) {
       return apiError("Invalid JSON body", 400);

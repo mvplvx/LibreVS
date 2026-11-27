@@ -1,4 +1,4 @@
-import { getUser } from "@/lib/auth";
+import { requireApiContext } from "@/lib/auth";
 import { findReportingPeriodById } from "@/lib/api/reportingPeriod";
 import {
   parseJsonBody,
@@ -24,7 +24,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   return withApiHandler(async () => {
-    const { organizationId } = getUser(req);
+    const { organizationId } = await requireApiContext(req);
     const reportingPeriodId = await resolveRouteId(params);
 
     if (!reportingPeriodId) {
@@ -53,7 +53,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   return withApiHandler(async () => {
-    const { organizationId } = getUser(req);
+    const { organizationId } = await requireApiContext(req);
     const reportingPeriodId = await resolveRouteId(params);
 
     if (!reportingPeriodId) {

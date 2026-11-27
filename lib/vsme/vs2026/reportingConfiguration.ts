@@ -18,7 +18,7 @@ import {
  * module does not read or write them, and it does not read employee count.
  *
  * Callers that serve an HTTP request must pass the organization id already
- * resolved by getUser. The query matches findReportingPeriodInOrganization:
+ * resolved from the authenticated session. The query matches findReportingPeriodInOrganization:
  * a period outside that organization is PERIOD_NOT_FOUND. These functions
  * are not mounted on a route.
  */

@@ -1,4 +1,4 @@
-import { getUser } from "@/lib/auth";
+import { requireApiContext } from "@/lib/auth";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiError, apiSuccess } from "@/lib/api/response";
 import {
@@ -18,7 +18,7 @@ export async function POST(
   }
 ) {
   return withApiHandler(async () => {
-    const { organizationId, userId } = getUser(req);
+    const { organizationId, userId } = await requireApiContext(req);
     const resolved = await params;
     const reportingPeriodId = resolved.id?.trim();
     const snapshotId = resolved.snapshotId?.trim();

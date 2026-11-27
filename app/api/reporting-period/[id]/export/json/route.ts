@@ -1,6 +1,6 @@
-import { getUser } from "@/lib/auth";
+import { requireApiContext } from "@/lib/auth";
 import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
-import { apiError, apiSuccess } from "@/lib/api/response";
+import { apiError } from "@/lib/api/response";
 import {
   buildCanonicalExportDataset,
   serializeExportDatasetJson,
@@ -14,7 +14,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   return withApiHandler(async () => {
-    const { organizationId } = getUser(req);
+    const { organizationId } = await requireApiContext(req);
     const reportingPeriodId = await resolveRouteId(params);
 
     if (!reportingPeriodId) {

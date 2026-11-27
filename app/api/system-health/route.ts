@@ -3,7 +3,6 @@ import { apiSuccess } from "@/lib/api/response";
 import { prisma } from "@/lib/db/prisma";
 import { getLibreVsBuildInfo } from "@/lib/constants/librevsRelease";
 import { LIBREVS_VERSION } from "@/lib/constants/librevsCommunity";
-import { isLegacyStoredRow } from "@/lib/vsme/runtime/dataTruthMode";
 import { validateRegistryAtRuntime } from "@/lib/system/registryHealth";
 import { VSME_SCHEMA_VERSION } from "@/lib/vsme/schemaVersion";
 
@@ -21,28 +20,11 @@ export async function GET() {
       databaseReachable = false;
     }
 
-    let legacyFieldsDetected = false;
-    if (databaseReachable) {
-      try {
-        const sample = await prisma.sustainabilityDataPoint.findMany({
-          select: {
-            fieldId: true,
-            legacyFieldId: true,
-            migrationStatus: true,
-          },
-          take: 2000,
-        });
-        legacyFieldsDetected = sample.some((row) => isLegacyStoredRow(row));
-      } catch {
-        legacyFieldsDetected = false;
-      }
-    }
-
+    const legacyFieldsDetected = false;
     const status =
       registry.ok &&
       VSME_SCHEMA_VERSION === "2.0.0" &&
-      databaseReachable &&
-      !legacyFieldsDetected
+      databaseReachable
         ? "ok"
         : registry.ok && databaseReachable
           ? "degraded"
@@ -66,6 +48,7 @@ export async function GET() {
         reportingSnapshot: registry.ok ? "loaded" : "degraded",
       },
       legacyFieldsDetected,
+      reportingDataInspected: false,
       warnings: registry.warnings,
     });
   });

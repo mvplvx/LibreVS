@@ -1,4 +1,4 @@
-import { getUser } from "@/lib/auth";
+import { requireApiContext } from "@/lib/auth";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiError, apiSuccess } from "@/lib/api/response";
 import { getExportSnapshotById } from "@/lib/vsme/exportSnapshotVersioning";
@@ -15,7 +15,7 @@ export async function GET(
   }
 ) {
   return withApiHandler(async () => {
-    const { organizationId } = getUser(req);
+    const { organizationId } = await requireApiContext(req);
     const resolved = await params;
     const reportingPeriodId = resolved.id?.trim();
     const snapshotId = resolved.snapshotId?.trim();

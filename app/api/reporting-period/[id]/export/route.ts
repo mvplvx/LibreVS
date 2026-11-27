@@ -1,4 +1,4 @@
-import { getUser } from "@/lib/auth";
+import { requireApiContext } from "@/lib/auth";
 import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
 import { loadPeriodIntelligence } from "@/lib/api/loadPeriodIntelligence";
 import { apiError, apiSuccess } from "@/lib/api/response";
@@ -26,7 +26,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   return withApiHandler(async () => {
-    const { organizationId, userId } = getUser(req);
+    const { organizationId, userId } = await requireApiContext(req);
     const reportingPeriodId = await resolveRouteId(params);
 
     if (!reportingPeriodId) {

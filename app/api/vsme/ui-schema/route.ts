@@ -1,3 +1,5 @@
+import { requireApiContext } from "@/lib/auth";
+import { findReportingPeriodById } from "@/lib/api/reportingPeriod";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiError, apiSuccess } from "@/lib/api/response";
 import { VSME_FIELD_COUNT } from "@/lib/vsme/vsme.fieldRegistry";
@@ -35,6 +37,7 @@ function emptyUiSchemaFallback(employeeCount: number): VsmeUiSchema {
 export async function GET(req: Request) {
   return withApiHandler(async () => {
     ensureDevBootCheck();
+    const { organizationId } = await requireApiContext(req);
 
     const { searchParams } = new URL(req.url);
     const raw = searchParams.get("employeeCount");
@@ -52,6 +55,10 @@ export async function GET(req: Request) {
     let materialityByFieldId: Record<string, import("@/lib/vsme/materiality").VsmeMateriality> = {};
     let reportedFieldIds = new Set<string>();
     if (reportingPeriodId) {
+      const period = await findReportingPeriodById(reportingPeriodId, organizationId);
+      if (!period) {
+        return apiError("Reporting period not found", 404);
+      }
       [materialityByFieldId, reportedFieldIds] = await Promise.all([
         loadMaterialityForPeriod(reportingPeriodId),
         loadReportedFieldIds(reportingPeriodId),

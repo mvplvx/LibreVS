@@ -1,4 +1,4 @@
-import { getUser } from "@/lib/auth";
+import { requireApiContext } from "@/lib/auth";
 import { withApiHandler, parseJsonBody } from "@/lib/api/handler";
 import { apiError, apiSuccess, formatZodError } from "@/lib/api/response";
 import { librevsLog } from "@/lib/observability/librevsLog";
@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 
 export async function POST(req: Request) {
   return withApiHandler(async () => {
-    const { organizationId } = getUser(req);
+    const { organizationId } = await requireApiContext(req);
     const body = await parseJsonBody(req);
     if (body === null) {
       return apiError("Invalid JSON body", 400);

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { getUser } from "@/lib/auth";
+import { requireApiContext } from "@/lib/auth";
 import { withApiHandler, parseJsonBody, resolveRouteId } from "@/lib/api/handler";
 import { apiError, apiSuccess } from "@/lib/api/response";
 import { validateReportingCurrencyInput } from "@/lib/vsme/validateReportingCurrency";
@@ -9,7 +9,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   return withApiHandler(async () => {
-    const { organizationId } = getUser(req);
+    const { organizationId } = await requireApiContext(req);
     const companyId = await resolveRouteId(params);
 
     if (!companyId) {

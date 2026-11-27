@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { UnauthenticatedError } from "@/lib/auth";
 import { apiError } from "@/lib/api/response";
 
 function isDatabaseUnavailable(error: unknown): boolean {
@@ -15,6 +16,10 @@ export async function withApiHandler(
   try {
     return await handler();
   } catch (error) {
+    if (error instanceof UnauthenticatedError) {
+      return apiError("Sign-in is required", 401);
+    }
+
     if (isDatabaseUnavailable(error)) {
       return apiError(
         "Database is unavailable. Run migrations and seed, then retry.",

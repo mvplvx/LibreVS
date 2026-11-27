@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { requireApiContext } from "@/lib/auth";
 import { withApiHandler } from "@/lib/api/handler";
 import { apiError, apiSuccess } from "@/lib/api/response";
 import { buildLegacyDataSummary } from "@/lib/vsme/migration/dataPointMigration";
@@ -12,12 +13,16 @@ const SAMPLE_LIMIT = 20;
  */
 export async function GET(req: Request) {
   return withApiHandler(async () => {
+    const { organizationId } = await requireApiContext(req);
     const reportingPeriodId = new URL(req.url).searchParams
       .get("reportingPeriodId")
       ?.trim();
 
     const rows = await prisma.sustainabilityDataPoint.findMany({
-      where: reportingPeriodId ? { reportingPeriodId } : undefined,
+      where: {
+        reportingPeriod: { company: { organizationId } },
+        ...(reportingPeriodId ? { reportingPeriodId } : {}),
+      },
       orderBy: [{ fieldId: "asc" }],
       select: {
         fieldId: true,
@@ -29,8 +34,8 @@ export async function GET(req: Request) {
     });
 
     if (reportingPeriodId && rows.length === 0) {
-      const period = await prisma.reportingPeriod.findUnique({
-        where: { id: reportingPeriodId },
+      const period = await prisma.reportingPeriod.findFirst({
+        where: { id: reportingPeriodId, company: { organizationId } },
         select: { id: true },
       });
       if (!period) {

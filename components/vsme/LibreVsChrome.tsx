@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { authClient } from "@/lib/auth-client";
 import {
   LIBREVS_CONTACT_EMAIL,
   LIBREVS_DISCUSSIONS_URL,
@@ -17,6 +18,7 @@ type LibreVsChromeProps = {
 
 export function LibreVsChrome({ children }: LibreVsChromeProps) {
   const [aboutOpen, setAboutOpen] = useState(false);
+  const { data: session } = authClient.useSession();
 
   return (
     <div className="flex min-h-full flex-col">
@@ -52,6 +54,27 @@ export function LibreVsChrome({ children }: LibreVsChromeProps) {
             >
               About
             </button>
+            {session ? (
+              <button
+                type="button"
+                className="hover:text-slate-900"
+                onClick={() => {
+                  void authClient.signOut({
+                    fetchOptions: {
+                      onSuccess: () => {
+                        window.location.assign("/login");
+                      },
+                    },
+                  });
+                }}
+              >
+                Sign out
+              </button>
+            ) : (
+              <Link href="/login" className="hover:text-slate-900">
+                Sign in
+              </Link>
+            )}
           </nav>
         </div>
       </header>

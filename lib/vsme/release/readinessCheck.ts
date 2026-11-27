@@ -147,30 +147,6 @@ function checkExportIntegrity(): boolean {
   }
 }
 
-function checkApiEnvelopeIntegrity(blockers: string[]): void {
-  const success = apiSuccess({ probe: true });
-  const error = apiError("probe", 400);
-  const parse = async (res: Response) => {
-    const body = (await res.json()) as {
-      success?: boolean;
-      data?: unknown;
-      error?: string;
-    };
-    return body;
-  };
-
-  return void (async () => {
-    const okBody = await parse(success);
-    if (okBody.success !== true || okBody.data === undefined) {
-      blockers.push("apiSuccess envelope missing success:true or data");
-    }
-    const errBody = await parse(error);
-    if (errBody.success !== false || typeof errBody.error !== "string") {
-      blockers.push("apiError envelope missing success:false or error string");
-    }
-  })();
-}
-
 async function checkApiEnvelopeIntegrityAsync(
   blockers: string[]
 ): Promise<void> {
@@ -204,8 +180,14 @@ async function checkCircularImportSafety(blockers: string[]): Promise<void> {
   }
 }
 
-async function checkLegacyRowPresence(blockers: string[]): Promise<void> {
+async function checkLegacyRowPresence(
+  blockers: string[],
+  organizationId?: string,
+): Promise<void> {
   const rows = await prisma.sustainabilityDataPoint.findMany({
+    where: organizationId
+      ? { reportingPeriod: { company: { organizationId } } }
+      : undefined,
     select: {
       fieldId: true,
       legacyFieldId: true,
@@ -228,13 +210,21 @@ async function checkLegacyRowPresence(blockers: string[]): Promise<void> {
   }
 }
 
-async function checkKpiSnapshotConsistency(warnings: string[]): Promise<void> {
+async function checkKpiSnapshotConsistency(
+  warnings: string[],
+  organizationId?: string,
+): Promise<void> {
   const period = await prisma.reportingPeriod.findFirst({
+    where: organizationId ? { company: { organizationId } } : undefined,
     orderBy: { createdAt: "desc" },
     select: { id: true },
   });
   if (!period) {
-    warnings.push("No reporting periods in database — KPI/snapshot check skipped");
+    warnings.push(
+      organizationId
+        ? "No reporting periods for this organisation — KPI/snapshot check skipped"
+        : "No reporting periods in database — KPI/snapshot check skipped",
+    );
     return;
   }
 
@@ -294,8 +284,22 @@ function deriveSystemHealth(
 
 /**
  * Read-only release readiness evaluation for pilot operations.
+ * Export gating keeps the system-wide sample. HTTP callers must use
+ * runReadinessCheckForOrganization so one organisation cannot learn
+ * another organisation's reporting activity.
  */
 export async function runReadinessCheck(): Promise<ReadinessCheckResult> {
+  return collectReadiness();
+}
+
+/** Readiness sample limited to the authenticated organisation. */
+export async function runReadinessCheckForOrganization(
+  organizationId: string,
+): Promise<ReadinessCheckResult> {
+  return collectReadiness(organizationId);
+}
+
+async function collectReadiness(organizationId?: string): Promise<ReadinessCheckResult> {
   const blockers: string[] = [];
   const warnings: string[] = [];
 
@@ -306,8 +310,8 @@ export async function runReadinessCheck(): Promise<ReadinessCheckResult> {
   await checkCircularImportSafety(blockers);
 
   try {
-    await checkLegacyRowPresence(blockers);
-    await checkKpiSnapshotConsistency(warnings);
+    await checkLegacyRowPresence(blockers, organizationId);
+    await checkKpiSnapshotConsistency(warnings, organizationId);
   } catch (error) {
     warnings.push(
       `Database readiness checks skipped: ${

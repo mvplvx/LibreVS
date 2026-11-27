@@ -19,14 +19,70 @@ model Organization {
 }
 
 model User {
-  id    String  @id @default(cuid())
-  email String  @unique
-  name  String?
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  emailVerified Boolean  @default(false)
+  image         String?
+  /** False rejects every session for this user on the next request. */
+  active        Boolean  @default(true)
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
+  sessions  Session[]
+  accounts  Account[]
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/** Better Auth database session. The token is the credential. It is not a user id. */
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/** Credential or linked-account record. Password hashes live here, not on User. */
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+/** Short-lived authentication tokens such as future password resets. */
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
 }
 
 model Company {
@@ -140,6 +196,7 @@ model SustainabilityDataPoint {
   migrationStatus String?
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([reportingPeriodId, fieldId])
 }
@@ -183,6 +240,11 @@ model Vs2026RepeatingValue {
   dimensionMember String   @default("")
   value           String
   unit            String?
+  /// Paragraph 22 attestation metadata. Not an Annex I fact. False means not attested.
+  omissionConditionsAssessed   Boolean  @default(false)
+  omissionReassessedForPeriod  Boolean  @default(false)
+  omissionAssessedByUserId     String?
+  omissionAssessedAt           DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
