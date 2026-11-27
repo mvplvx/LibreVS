@@ -5,10 +5,12 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import type { EditorMutationResult } from "@/lib/vsme/vs2026/editorView";
 import {
+  saveVs2026ComparativeBasis,
   saveVs2026EditorScalar,
   saveVs2026EmployeeMeasure,
   saveVs2026OptionA,
 } from "@/lib/vsme/vs2026/editorWrite";
+import { finaliseVS2026Report } from "@/lib/vsme/vs2026/reportFinalise";
 import {
   createRepeatingRow,
   deleteRepeatingRow,
@@ -37,6 +39,20 @@ export async function saveEmployeeMeasureAction(
   confirmed: boolean,
 ): Promise<EditorMutationResult> {
   return saveVs2026EmployeeMeasure({
+    request: await currentRequest(),
+    reportingPeriodId,
+    value,
+    confirmed,
+    db: prisma,
+  });
+}
+
+export async function saveComparativeBasisAction(
+  reportingPeriodId: string,
+  value: "FIRST_YEAR" | "SUBSEQUENT" | null,
+  confirmed: boolean,
+): Promise<EditorMutationResult> {
+  return saveVs2026ComparativeBasis({
     request: await currentRequest(),
     reportingPeriodId,
     value,
@@ -155,6 +171,15 @@ export async function saveOmissionClaimAction(
     conditionsAssessed,
     reassessedForPeriod,
     rowId,
+    db: prisma,
+  });
+}
+
+export async function finaliseReportAction(reportingPeriodId: string, confirmed: boolean) {
+  return finaliseVS2026Report({
+    request: await currentRequest(),
+    reportingPeriodId,
+    confirmed,
     db: prisma,
   });
 }

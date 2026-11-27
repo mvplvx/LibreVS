@@ -1,5 +1,5 @@
 /**
- * Full local initialization: demo org/user + VSME demo company/period.
+ * Local initialization: demo organisation, company, and an unconfigured reporting period.
  * Run: npm run db:seed
  */
 import { PrismaClient } from "@prisma/client";
@@ -46,7 +46,7 @@ async function seedBase(): Promise<void> {
 
 async function main(): Promise<void> {
   await seedBase();
-  await seedVsmeDemo(prisma, { includeSampleData: true });
+  await seedVsmeDemo(prisma);
   console.log(
     "db:seed complete. The demo user has no password and cannot sign in. Provision an account with scripts/provision-auth-user.ts, then open http://localhost:3000/login",
   );

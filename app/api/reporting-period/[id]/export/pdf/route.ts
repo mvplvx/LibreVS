@@ -1,66 +1,10 @@
-import { requireApiContext } from "@/lib/auth";
-import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
-import { apiError } from "@/lib/api/response";
-import { loadValidatedExportContext } from "@/lib/export/loadValidatedExportContext";
-import { exportVsmeToPdf } from "@/lib/export/pdfExporter";
-import { librevsLog } from "@/lib/observability/librevsLog";
+import { retiredPeriodRoute } from "@/lib/vsme/retiredRoute";
 
-/** Deterministic VSME PDF summary (strict V2 rows, exportReady required). */
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
-  return withApiHandler(async () => {
-    const { organizationId } = await requireApiContext(req);
-    const reportingPeriodId = await resolveRouteId(params);
-
-    if (!reportingPeriodId) {
-      return apiError("Reporting period id is required", 400);
-    }
-
-    const result = await loadValidatedExportContext(
-      reportingPeriodId,
-      organizationId
-    );
-
-    if (!result.ok) {
-      return Response.json(
-        { success: false, error: result.error },
-        { status: 400 }
-      );
-    }
-
-    const { context } = result;
-    const exportedAt = new Date().toISOString();
-    const pdfBytes = await exportVsmeToPdf({
-      companyName: context.companyName,
-      reportingPeriodId: context.reportingPeriodId,
-      year: context.year,
-      schemaVersion: context.schemaVersion,
-      exportedAt,
-      rows: context.rows,
-      exportReady: context.validation.exportReady,
-      mandatoryCoveragePercentage: context.mandatoryCoveragePercentage,
-      missingRequiredCount: context.missingRequiredCount,
-      reportingCurrency: context.reportingCurrency,
-    });
-
-    const filename = `librevs-vsme-${context.year}.pdf`;
-
-    librevsLog("export.success", {
-      reportingPeriodId,
-      format: "pdf",
-      rowCount: context.rows.length,
-      year: context.year,
-    });
-
-    return new Response(Buffer.from(pdfBytes), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-        "Cache-Control": "no-store",
-      },
-    });
-  });
+  return retiredPeriodRoute(req, context.params);
 }

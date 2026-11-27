@@ -38,11 +38,8 @@ export function LibreVsChrome({ children }: LibreVsChromeProps) {
             </Link>
           </div>
           <nav className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
-            <Link href="/vsme" className="hover:text-slate-900">
-              VSME entry
-            </Link>
             <Link href="/dashboard" className="hover:text-slate-900">
-              Dashboard
+              Reporting
             </Link>
             <Link href="/system/health" className="hover:text-slate-900">
               System

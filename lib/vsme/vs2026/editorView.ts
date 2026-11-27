@@ -109,6 +109,8 @@ export type EditorReadyView = {
   energyBreakdownLabel: string;
   omissionTargets: { id: string; label: string }[];
   omissionReasons: { point: "22(a)" | "22(b)" | "22(c)" | "22(d)"; text: string }[];
+  comparativeBasis: "UNKNOWN" | "FIRST_YEAR" | "SUBSEQUENT";
+  comparativeUpdatedAt: string | null;
   previewHref: string;
 };
 

@@ -202,7 +202,8 @@ describe("authentication and tenant isolation", () => {
       const ownPoints = await getDataPoints(
         request(`/api/data-point?reportingPeriodId=${periodA.id}`, sessionCookie),
       );
-      assert.equal(ownPoints.status, 200);
+      assert.equal(ownPoints.status, 410);
+      assert.equal((await ownPoints.text()).includes("SEC01-SITE-SECRET"), false);
       const foreignPoints = await getDataPoints(
         request(`/api/data-point?reportingPeriodId=${periodA.id}`, cookieB),
       );

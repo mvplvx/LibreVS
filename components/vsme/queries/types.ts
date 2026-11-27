@@ -20,6 +20,7 @@ export type ReportingPeriodRecord = {
   status: string;
   companyId: string;
   schemaVersion?: string;
+  vs2026ReportingOption?: string | null;
 };
 
 export type StoredDataPoint = {

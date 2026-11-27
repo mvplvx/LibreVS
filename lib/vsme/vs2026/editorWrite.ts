@@ -6,12 +6,14 @@ import { prisma } from "@/lib/db/prisma";
 import { isVS2026EditorEnabled } from "./editorAvailability";
 import type { EditorMutationResult } from "./editorView";
 import { classifyEmployeeSize, VS2026_EMPLOYEE_PROPORTIONALITY_MEASURE } from "./employeeSize";
+import { VS2026_COMPARATIVE_BASIS, VS2026_REPORTING_ORIGIN } from "./reportingStandard";
 import {
   getReportingConfiguration,
   saveReportingConfiguration,
   type ReportingConfigurationDb,
   type ReportingPeriodAccess,
 } from "./reportingConfiguration";
+import { lockVs2026ReportingPeriod } from "./reportLock";
 import { registryDatapoint, validateScalarWrite } from "./scalarEligibility";
 
 const EMPLOYEE_DECIMAL = /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
@@ -68,12 +70,17 @@ async function authorize(input: EditorCaller): Promise<Authorized> {
 
 async function inTransaction<T>(
   db: ReportingConfigurationDb,
+  reportingPeriodId: string,
   fn: (tx: ReportingConfigurationDb) => Promise<T>,
 ): Promise<T> {
+  const run = async (tx: ReportingConfigurationDb) => {
+    await lockVs2026ReportingPeriod(tx, reportingPeriodId);
+    return fn(tx);
+  };
   if (isPrismaClient(db)) {
-    return db.$transaction(fn);
+    return db.$transaction(run);
   }
-  return fn(db);
+  return run(db);
 }
 
 type PeriodMode =
@@ -116,7 +123,7 @@ export async function saveVs2026OptionA(input: EditorCaller): Promise<EditorMuta
     return gate.result;
   }
   try {
-    return await inTransaction(gate.db, async (tx) => {
+    return await inTransaction(gate.db, gate.access.reportingPeriodId, async (tx) => {
       const mode = await readPeriodMode(gate.access, tx);
       if (!mode.ok) {
         return mode.result;
@@ -167,7 +174,7 @@ export async function saveVs2026EmployeeMeasure(
     return gate.result;
   }
   try {
-    return await inTransaction(gate.db, async (tx) => {
+    return await inTransaction(gate.db, gate.access.reportingPeriodId, async (tx) => {
       const mode = await readPeriodMode(gate.access, tx);
       if (!mode.ok) {
         return mode.result;
@@ -214,6 +221,49 @@ export async function saveVs2026EmployeeMeasure(
   }
 }
 
+export async function saveVs2026ComparativeBasis(
+  input: EditorCaller & { value: "FIRST_YEAR" | "SUBSEQUENT" | null; confirmed: boolean },
+): Promise<EditorMutationResult> {
+  const gate = await authorize(input);
+  if (!gate.ok) {
+    return gate.result;
+  }
+  try {
+    return await inTransaction(gate.db, gate.access.reportingPeriodId, async (tx) => {
+      const mode = await readPeriodMode(gate.access, tx);
+      if (!mode.ok) {
+        return mode.result;
+      }
+      if (mode.mode === "OPTION_B") {
+        return fail("OPTION_B_UNSUPPORTED", "Option B is stored. Facts were not changed.");
+      }
+      if (mode.mode !== "OPTION_A") {
+        return fail("CONFIGURATION_REQUIRED", "Save Option A before recording the reporting year.");
+      }
+      if (input.confirmed !== true) {
+        return fail(
+          "CONFIRMATION_REQUIRED",
+          "Confirm the reporting-year basis before saving it. The confirmation is not stored.",
+        );
+      }
+      if (input.value !== null && input.value !== "FIRST_YEAR" && input.value !== "SUBSEQUENT") {
+        return fail("INVALID_VALUE", "Choose the first reporting year or a subsequent reporting year.");
+      }
+      const written = await writeScalarRow(tx, gate.access.reportingPeriodId, {
+        fieldId: VS2026_COMPARATIVE_BASIS,
+        value: input.value,
+        unit: null,
+      });
+      if (!written.ok) {
+        return written.result;
+      }
+      return { ok: true, code: written.code, updatedAt: written.updatedAt };
+    });
+  } catch {
+    return fail("DATABASE_FAILURE", "The reporting-year basis was not saved.");
+  }
+}
+
 export async function saveVs2026EditorScalar(
   input: EditorCaller & {
     datapointId: string;
@@ -228,7 +278,7 @@ export async function saveVs2026EditorScalar(
   }
   const datapointId = input.datapointId.trim();
   try {
-    return await inTransaction(gate.db, async (tx) => {
+    return await inTransaction(gate.db, gate.access.reportingPeriodId, async (tx) => {
       const mode = await readPeriodMode(gate.access, tx);
       if (!mode.ok) {
         return mode.result;
@@ -241,6 +291,9 @@ export async function saveVs2026EditorScalar(
       }
       if (datapointId === VS2026_EMPLOYEE_PROPORTIONALITY_MEASURE) {
         return fail("NOT_EDITABLE", "The employee proportionality measure has its own input.");
+      }
+      if (datapointId === VS2026_COMPARATIVE_BASIS) {
+        return fail("NOT_EDITABLE", "The comparative basis has its own confirmation.");
       }
       const datapoint = registryDatapoint(datapointId);
       if (!datapoint) {
@@ -279,7 +332,7 @@ export async function runOptionAMutation(
     return gate.result;
   }
   try {
-    return await inTransaction(gate.db, async (tx) => {
+    return await inTransaction(gate.db, gate.access.reportingPeriodId, async (tx) => {
       const mode = await readPeriodMode(gate.access, tx);
       if (!mode.ok) {
         return mode.result;
@@ -414,7 +467,12 @@ async function writeScalarRow(
         migratedFieldId: null,
         migrationStatus: null,
       },
-      data: { value: fact.value, unit: fact.unit, updatedAt: new Date() },
+      data: {
+        value: fact.value,
+        unit: fact.unit,
+        reportingOrigin: VS2026_REPORTING_ORIGIN,
+        updatedAt: new Date(),
+      },
     });
     if (updated.count !== 1) {
       return {
@@ -432,6 +490,7 @@ async function writeScalarRow(
         fieldId: fact.fieldId,
         value: fact.value,
         unit: fact.unit,
+        reportingOrigin: VS2026_REPORTING_ORIGIN,
       },
     });
   }

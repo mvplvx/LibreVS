@@ -40,7 +40,7 @@ export function formatLibreVsVersionLine(info: LibreVsBuildInfo = getLibreVsBuil
   const parts = [
     `LibreVS ${info.edition} — ${info.releaseCandidate}`,
     `v${info.version}`,
-    `schema VSME ${info.schemaVersion}`,
+    "VS 2026",
   ];
   if (info.gitCommitShort) {
     parts.push(`build ${info.gitCommitShort}`);

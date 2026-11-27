@@ -41,15 +41,14 @@ pg_dump "$DATABASE_URL" -Fc -f librevs-backup-$(date +%Y%m%d).dump`}
         <section className="rounded-lg border border-slate-200 bg-white px-5 py-5 text-sm">
           <h2 className="font-semibold text-slate-900">Export your data</h2>
           <p className="mt-2 text-slate-600">
-            When a reporting period is export-ready, use the dashboard or VSME
-            workspace to generate deterministic XLSX and PDF files. JSON export is
-            available via the API for integration workflows.
+            A finalised VS 2026 report can be downloaded as JSON, Excel, or PDF from the dashboard.
+            Those files are a snapshot of the undertaking&apos;s report. They do not replace the database.
           </p>
           <Link
-            href="/vsme/export-review"
+            href="/dashboard"
             className="mt-3 inline-block font-medium text-slate-800 underline"
           >
-            Open export review →
+            Open the dashboard →
           </Link>
         </section>
 

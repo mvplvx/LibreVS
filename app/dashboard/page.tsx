@@ -1,21 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { ExportCenter } from "@/components/export/ExportCenter";
+import { FormEvent, useEffect, useState } from "react";
+
+import { DataOwnershipNotice } from "@/components/librevs/DataOwnershipNotice";
 import { SystemHealthIndicator } from "@/components/system/SystemHealthIndicator";
 import { PilotModeBanner } from "@/components/vsme/PilotModeBanner";
-import { VsmeWorkspaceFallback } from "@/components/vsme/VsmeWorkspaceFallback";
-import {
-  REPORTING_STATE_BADGE_CLASS,
-  REPORTING_STATE_DESCRIPTIONS,
-  REPORTING_STATE_LABELS,
-} from "@/components/vsme/reportingStateUi";
-import { ExportIntegrityIndicator } from "@/components/vsme/ExportIntegrityIndicator";
+import { useCreateReportingPeriod, useVsmeWorkspace } from "@/components/vsme/queries";
 import { VsmeWorkspaceSelectors } from "@/components/vsme/VsmeWorkspaceSelectors";
-import { useVsmeDashboard, useVsmeWorkspace } from "@/components/vsme/queries";
-import { useExportValidation } from "@/hooks/useExportValidation";
+import { saveOptionAAction } from "@/lib/vsme/vs2026/editorActions";
+import { apiGet } from "@/lib/api/client";
+import { queryClient } from "@/lib/query/queryClient";
 import { parseReportingCurrency } from "@/lib/vsme/currency";
-import { DataOwnershipNotice } from "@/components/librevs/DataOwnershipNotice";
+import { vsmeKeys } from "@/lib/vsme/vsmeQueryKeys";
+import type { Vs2026PeriodSummary } from "@/lib/vsme/vs2026/periodSummary";
+
+const OPTION_LABEL: Record<Vs2026PeriodSummary["standard"], string> = {
+  UNCONFIGURED: "VS 2026 reporting option not configured",
+  OPTION_A: "VS 2026 · Option A · Basic Module",
+  OPTION_B: "VS 2026 · Option B · Comprehensive Module — future support",
+  INVALID: "The stored reporting option is not valid",
+};
 
 export default function DashboardPage() {
   const {
@@ -26,53 +31,97 @@ export default function DashboardPage() {
     periodId,
     setCompanyId,
     setPeriodId,
-    isLoading: workspaceLoading,
+    isLoading,
     error: workspaceError,
   } = useVsmeWorkspace();
-
-  const dashboardQuery = useVsmeDashboard(periodId);
-  const exportValidationQuery = useExportValidation(periodId);
-  const dashboard = dashboardQuery.data ?? null;
-
-  const loading =
-    workspaceLoading ||
-    dashboardQuery.isLoading ||
-    exportValidationQuery.isLoading;
-
-  const error =
-    workspaceError ?? dashboardQuery.error?.message ?? null;
-
+  const createPeriod = useCreateReportingPeriod();
+  const [year, setYear] = useState(String(new Date().getFullYear()));
+  const [summary, setSummary] = useState<Vs2026PeriodSummary | null>(null);
+  const [summaryPeriodId, setSummaryPeriodId] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [optionMessage, setOptionMessage] = useState<string | null>(null);
+  const [optionPending, setOptionPending] = useState(false);
   const reportingCurrency = parseReportingCurrency(company?.currency);
+
+  useEffect(() => {
+    if (!periodId) {
+      return;
+    }
+    const requestedId = periodId;
+    let cancelled = false;
+    apiGet<Vs2026PeriodSummary>(`/api/vsme/vs2026/period/${requestedId}/summary`)
+      .then((data) => {
+        if (!cancelled) {
+          setSummary(data);
+          setSummaryPeriodId(requestedId);
+          setSummaryError(null);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setSummary(null);
+          setSummaryPeriodId(requestedId);
+          setSummaryError(error instanceof Error ? error.message : "The reporting period could not be loaded.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [periodId]);
+  const visibleSummary = periodId && summaryPeriodId === periodId ? summary : null;
+  const visibleSummaryError = periodId && summaryPeriodId === periodId ? summaryError : null;
+
+  async function createReportingPeriod(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!company?.id) {
+      return;
+    }
+    const parsedYear = Number(year);
+    if (!Number.isInteger(parsedYear)) {
+      return;
+    }
+    const created = await createPeriod.mutateAsync({ companyId: company.id, year: parsedYear });
+    setPeriodId(created.id);
+    setOptionMessage(null);
+  }
+
+  async function chooseOptionA() {
+    if (!periodId) {
+      return;
+    }
+    setOptionPending(true);
+    setOptionMessage(null);
+    const result = await saveOptionAAction(periodId);
+    setOptionPending(false);
+    if (!result.ok) {
+      setOptionMessage(result.message);
+      return;
+    }
+    setOptionMessage("Option A is saved for this period.");
+    await queryClient.invalidateQueries({ queryKey: vsmeKeys.reportingPeriods() });
+    const refreshed = await apiGet<Vs2026PeriodSummary>(`/api/vsme/vs2026/period/${periodId}/summary`);
+    setSummary(refreshed);
+    setSummaryPeriodId(periodId);
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-8">
         <PilotModeBanner />
-
         <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold">LibreVS VSME Reporting</h1>
+            <h1 className="text-2xl font-semibold">LibreVS reporting</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Schema-driven local reporting (EFRAG-aligned, single company)
+              VS 2026 Basic Module for the selected undertaking and reporting period.
             </p>
-            <a
-              href="/vsme"
-              className="mt-2 inline-block text-sm font-medium text-slate-800 underline"
-            >
-              Open VSME data entry →
-            </a>
           </div>
           <SystemHealthIndicator />
         </header>
-
-        {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            {error}
-          </div>
-        )}
-
+        {workspaceError ? (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">{workspaceError}</div>
+        ) : null}
         <div className="grid grid-cols-12 gap-6">
-          <aside className="col-span-12 lg:col-span-3 space-y-4">
+          <aside className="col-span-12 space-y-4 lg:col-span-3">
             <VsmeWorkspaceSelectors
               companies={companies}
               company={company}
@@ -83,213 +132,97 @@ export default function DashboardPage() {
               onCompanyChange={setCompanyId}
               onPeriodChange={setPeriodId}
             />
+            <form className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" onSubmit={createReportingPeriod}>
+              <h2 className="text-sm font-semibold text-slate-900">New reporting period</h2>
+              <p className="mt-1 text-xs text-slate-600">
+                The period stays unconfigured until you choose Option A. Comprehensive Module support comes later.
+              </p>
+              <label className="mt-3 block text-sm text-slate-800">
+                Reporting year
+                <input
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
+                  inputMode="numeric"
+                  value={year}
+                  onChange={(event) => setYear(event.target.value)}
+                />
+              </label>
+              <button
+                className="mt-3 rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-50"
+                type="submit"
+                disabled={!company || createPeriod.isPending}
+              >
+                {createPeriod.isPending ? "Creating…" : "Create reporting period"}
+              </button>
+              {createPeriod.isError ? (
+                <p className="mt-2 text-sm text-red-700">{createPeriod.error?.message}</p>
+              ) : null}
+            </form>
             <DataOwnershipNotice compact />
           </aside>
-
-          <div className="col-span-12 lg:col-span-9 space-y-6">
-            {loading ? (
-              <p className="text-sm text-slate-500">Loading…</p>
-            ) : !dashboard ? (
-              <VsmeWorkspaceFallback
-                companies={companies}
-                company={company}
-                periods={periods}
-                onCreated={setPeriodId}
-              />
-            ) : dashboard ? (
-              <>
-                <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Reporting state
-                      </p>
-                      <p className="mt-1 text-xl font-semibold text-slate-900">
-                        {REPORTING_STATE_LABELS[dashboard.reportingState]}
-                      </p>
-                      <p className="mt-1 max-w-xl text-sm text-slate-600">
-                        {REPORTING_STATE_DESCRIPTIONS[dashboard.reportingState]}
-                      </p>
-                      <p className="mt-2 text-xs text-slate-500">
-                        Derived from snapshot · {dashboard.requiredCoveragePercentage}%
-                        required complete · period DB status:{" "}
-                        <span className="font-medium">{dashboard.status}</span>
-                      </p>
-                    </div>
-                    <span
-                      className={`inline-flex rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset ${REPORTING_STATE_BADGE_CLASS[dashboard.reportingState]}`}
+          <div className="col-span-12 space-y-6 lg:col-span-9">
+            {isLoading ? <p className="text-sm text-slate-500">Loading…</p> : null}
+            {!periodId && !isLoading ? (
+              <p className="text-sm text-slate-600">Select an undertaking and a reporting period, or create a period.</p>
+            ) : null}
+            {visibleSummaryError ? <p className="text-sm text-red-700">{visibleSummaryError}</p> : null}
+            {visibleSummary ? (
+              <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reporting period</p>
+                <h2 className="mt-1 text-xl font-semibold text-slate-900">
+                  {visibleSummary.companyName} · {visibleSummary.year}
+                </h2>
+                <p className="mt-2 text-sm text-slate-700">{OPTION_LABEL[visibleSummary.standard]}</p>
+                <p className="mt-2 text-sm text-slate-700">{visibleSummary.readinessMessage}</p>
+                {visibleSummary.readiness ? (
+                  <p className="mt-2 text-xs text-slate-500">Internal review status: {visibleSummary.readiness.replaceAll("_", " ")}</p>
+                ) : null}
+                <div className="mt-4 flex flex-wrap gap-3 text-sm">
+                  {visibleSummary.standard === "UNCONFIGURED" ? (
+                    <button
+                      className="rounded bg-slate-900 px-3 py-2 text-white disabled:opacity-50"
+                      type="button"
+                      disabled={optionPending}
+                      onClick={() => void chooseOptionA()}
                     >
-                      {dashboard.reportingState.replace(/_/g, " ")}
-                    </span>
-                  </div>
-                </section>
-
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs uppercase text-slate-500">
-                      In-scope completeness
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold">
-                      {dashboard.inScopeCoveragePercentage}%
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {dashboard.completeness.completedFieldIds.filter((id) =>
-                        dashboard.completeness.inScopeFieldIds.includes(id)
-                      ).length}{" "}
-                      / {dashboard.completeness.inScopeFieldIds.length} in scope
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs uppercase text-slate-500">
-                      Material completeness
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold">
-                      {dashboard.materialCoveragePercentage}%
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {dashboard.completeness.missingMaterialFields.length}{" "}
-                      material without data
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs uppercase text-slate-500">
-                      Required completeness
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold">
-                      {dashboard.requiredCoveragePercentage}%
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {dashboard.completeness.missingRequiredFields.length}{" "}
-                      required missing
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-xs uppercase text-slate-500">
-                      Registry coverage
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold">
-                      {dashboard.totalCoveragePercentage}%
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {dashboard.fieldsReported} / {dashboard.totalFields}{" "}
-                      fields
-                    </p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-xs uppercase text-slate-500">Export</p>
-                      {exportValidationQuery.validation ? (
-                        <ExportIntegrityIndicator
-                          exportCoverage={
-                            exportValidationQuery.validation.exportCoverage
-                          }
-                          isValid={exportValidationQuery.validation.isValid}
-                          compact
-                        />
-                      ) : null}
-                    </div>
-                    <p className="mt-2 text-lg font-semibold">
-                      {dashboard.exportReady ? "Ready" : "Blocked"}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {dashboard.completeness.exportBlockingFields.length}{" "}
-                      blocking field
-                      {dashboard.completeness.exportBlockingFields.length === 1
-                        ? ""
-                        : "s"}
-                    </p>
-                    {periodId ? (
-                      <Link
-                        href={`/vsme/export-review?period=${periodId}`}
-                        className="mt-2 inline-block text-xs font-medium text-slate-700 underline"
-                      >
-                        Review before export →
-                      </Link>
-                    ) : null}
-                  </div>
+                      {optionPending ? "Saving…" : "Choose Option A — Basic Module"}
+                    </button>
+                  ) : null}
+                  <span className="rounded border border-slate-300 px-3 py-2 text-slate-500">
+                    Comprehensive Module — future support
+                  </span>
+                  <Link className="rounded border border-slate-300 px-3 py-2" href={`/vsme/vs2026/edit/${visibleSummary.reportingPeriodId}`}>
+                    {visibleSummary.editorEnabled ? "Open the Basic Module editor" : "Editor unavailable"}
+                  </Link>
                 </div>
-
-                <ExportCenter
-                  periodId={periodId}
-                  year={dashboard.year ?? null}
-                  exportReady={dashboard.exportReady}
-                  mandatoryCoveragePercentage={
-                    dashboard.mandatoryCoveragePercentage ??
-                    dashboard.requiredCoveragePercentage ??
-                    0
-                  }
-                  missingRequiredCount={
-                    dashboard.completeness.missingRequiredFields.length
-                  }
-                  blockingFieldCount={
-                    dashboard.completeness.exportBlockingFields.length
-                  }
-                />
-
-                <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                  <h2 className="mb-4 text-lg font-medium">Sections</h2>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {dashboard.applicableSections.map((s) => {
-                      const counts = dashboard.bySection[s.sectionCode];
-                      return (
-                        <div
-                          key={s.sectionCode}
-                          className="rounded-md border border-slate-100 bg-slate-50 p-3 text-sm"
-                        >
-                          <p className="font-medium">
-                            {s.sectionCode}{" "}
-                            <span className="text-xs font-normal text-slate-500">
-                              ({s.workflowLabel.replace(/_/g, " ")})
-                            </span>
-                          </p>
-                          {counts && (
-                            <p className="text-slate-600">
-                              {counts.reported} / {counts.total} fields
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
+                {optionMessage ? <p className="mt-3 text-sm text-slate-700">{optionMessage}</p> : null}
+                {visibleSummary.snapshots.length > 0 ? (
+                  <div className="mt-6">
+                    <h3 className="text-sm font-semibold text-slate-900">Finalised revisions</h3>
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {visibleSummary.snapshots.map((snapshot) => (
+                        <li key={snapshot.id}>
+                          Revision {snapshot.revision}
+                          <span className="text-slate-600"> · {snapshot.finalisedAt}</span>
+                          <span className="ml-3 space-x-3">
+                            <a className="underline" href={`/api/vsme/vs2026/report/snapshot/${snapshot.id}?format=pdf`}>
+                              Download PDF report
+                            </a>
+                            <a className="underline" href={`/api/vsme/vs2026/report/snapshot/${snapshot.id}?format=xlsx`}>
+                              Download Excel report
+                            </a>
+                            <a className="underline" href={`/api/vsme/vs2026/report/snapshot/${snapshot.id}?format=json`}>
+                              Download JSON data
+                            </a>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </section>
-
-                {dashboard.values.length > 0 && (
-                  <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                    <h2 className="mb-4 text-lg font-medium">Reported values</h2>
-                    <div className="max-h-96 overflow-y-auto">
-                      <table className="w-full text-left text-sm">
-                        <thead className="border-b text-slate-500">
-                          <tr>
-                            <th className="py-2 pr-4">Field</th>
-                            <th className="py-2 pr-4">Value</th>
-                            <th className="py-2">Excel</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {dashboard.values.map((row) => (
-                            <tr key={row.fieldId} className="border-b border-slate-50">
-                              <td className="py-2 pr-4">
-                                <p className="font-medium">{row.label}</p>
-                                <p className="font-mono text-xs text-slate-500">
-                                  {row.fieldId}
-                                </p>
-                              </td>
-                              <td className="py-2 pr-4">
-                                {row.value}
-                                {row.unit ? ` ${row.unit}` : ""}
-                              </td>
-                              <td className="py-2 font-mono text-xs">{row.excelCell}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
+                ) : (
+                  <p className="mt-6 text-sm text-slate-600">No finalised revision is stored for this period.</p>
                 )}
-              </>
-            ) : (
-              <p className="text-sm text-slate-500">Select a reporting period.</p>
-            )}
+              </section>
+            ) : null}
           </div>
         </div>
       </div>

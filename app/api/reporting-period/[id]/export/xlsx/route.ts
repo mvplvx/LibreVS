@@ -1,70 +1,10 @@
-import { requireApiContext } from "@/lib/auth";
-import { withApiHandler, resolveRouteId } from "@/lib/api/handler";
-import { apiError } from "@/lib/api/response";
-import { loadValidatedExportContext } from "@/lib/export/loadValidatedExportContext";
-import { exportVsmeToXlsxBuffer } from "@/lib/export/xlsxExporter";
-import { librevsLog } from "@/lib/observability/librevsLog";
+import { retiredPeriodRoute } from "@/lib/vsme/retiredRoute";
 
-/** Deterministic VSME XLSX artifact (strict V2 rows, exportReady required). */
+export const dynamic = "force-dynamic";
+
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  context: { params: Promise<{ id: string }> },
 ) {
-  return withApiHandler(async () => {
-    const { organizationId } = await requireApiContext(req);
-    const reportingPeriodId = await resolveRouteId(params);
-
-    if (!reportingPeriodId) {
-      return apiError("Reporting period id is required", 400);
-    }
-
-    librevsLog("export.attempted", {
-      reportingPeriodId,
-      format: "xlsx",
-    });
-
-    const result = await loadValidatedExportContext(
-      reportingPeriodId,
-      organizationId
-    );
-
-    if (!result.ok) {
-      librevsLog("export.failure", {
-        reportingPeriodId,
-        format: "xlsx",
-        reason: result.error,
-      });
-      return Response.json(
-        { success: false, error: result.error },
-        { status: 400 }
-      );
-    }
-
-    const { context } = result;
-    const buffer = exportVsmeToXlsxBuffer({
-      reportingPeriodId: context.reportingPeriodId,
-      rows: context.rows,
-      schemaVersion: context.schemaVersion,
-      reportingCurrency: context.reportingCurrency,
-    });
-
-    const filename = `librevs-vsme-${context.year}.xlsx`;
-
-    librevsLog("export.success", {
-      reportingPeriodId,
-      format: "xlsx",
-      rowCount: context.rows.length,
-      year: context.year,
-    });
-
-    return new Response(new Uint8Array(buffer), {
-      status: 200,
-      headers: {
-        "Content-Type":
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-        "Cache-Control": "no-store",
-      },
-    });
-  });
+  return retiredPeriodRoute(req, context.params);
 }

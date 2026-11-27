@@ -4,15 +4,12 @@ import {
   LIBREVS_GITHUB_REPO,
   LIBREVS_ISSUES_URL,
   LIBREVS_PHILOSOPHY,
-  LIBREVS_SCHEMA_VERSION,
 } from "@/lib/constants/librevsCommunity";
 import { LIBREVS_RELEASE_CANDIDATE } from "@/lib/constants/librevsRelease";
-import { VSME_FIELD_COUNT } from "@/lib/vsme/vsme.fieldRegistry";
-
 const CHARACTERISTICS = [
   {
-    title: "EFRAG aligned",
-    description: "Mirrors official VSME structure",
+    title: "VS 2026",
+    description: "Basic Module reporting for Option A",
   },
   {
     title: "Open-source",
@@ -23,32 +20,30 @@ const CHARACTERISTICS = [
     description: "No AI-generated reporting logic",
   },
   {
-    title: "Export-ready",
-    description: "Structured XLSX and PDF outputs",
+    title: "Report downloads",
+    description: "JSON, Excel, and PDF from a finalised snapshot",
   },
 ] as const;
 
 const ENTRY_CARDS = [
   {
-    title: "Reporting Workspace",
-    description:
-      "Complete VSME reporting workflow including materiality, structured disclosures, and export validation.",
-    cta: "Open workspace",
-    href: "/vsme",
+    title: "VS 2026 reporting",
+    description: "Create a reporting period, choose Option A, and open the Basic Module editor.",
+    cta: "Open the dashboard",
+    href: "/dashboard",
   },
   {
-    title: "Reporting Overview",
-    description:
-      "Review coverage, export readiness, reporting scope, and missing required disclosures.",
-    cta: "Open overview",
-    href: "/dashboard",
+    title: "System",
+    description: "Read-only health and backup guidance for this self-hosted installation.",
+    cta: "Open system health",
+    href: "/system/health",
   },
 ] as const;
 
 const STRUCTURE_ITEMS = [
-  { label: "Structured disclosure datapoints", value: String(VSME_FIELD_COUNT) },
+  { label: "Reporting standard", value: "VS 2026" },
   { label: "Basic Module", value: "B1–B11" },
-  { label: "Comprehensive Module", value: "C1–C9" },
+  { label: "Comprehensive Module", value: "Later" },
 ] as const;
 
 export function HomeLanding() {
@@ -58,15 +53,14 @@ export function HomeLanding() {
         {/* Hero */}
         <header className="border-b border-slate-200 pb-10 sm:pb-12">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Open-source VSME reporting infrastructure · {LIBREVS_RELEASE_CANDIDATE}
+            Open-source VS 2026 reporting · {LIBREVS_RELEASE_CANDIDATE}
           </p>
           <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
             Structured sustainability reporting for European SMEs
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
-            LibreVS transforms the EFRAG VSME framework into a structured,
-            self-hosted reporting workspace with deterministic exports, materiality
-            management, and audit traceability.
+            LibreVS is a self-hosted workspace for VS 2026 Basic Module reporting,
+            with review, finalisation, and JSON, Excel, and PDF downloads.
           </p>
         </header>
 
@@ -120,7 +114,7 @@ export function HomeLanding() {
             id="structure-heading"
             className="text-xs font-semibold uppercase tracking-wide text-slate-500"
           >
-            VSME structure
+            Reporting scope
           </h2>
           <dl className="mt-4 grid gap-4 sm:grid-cols-3">
             {STRUCTURE_ITEMS.map((item) => (
@@ -133,8 +127,7 @@ export function HomeLanding() {
             ))}
           </dl>
           <p className="mt-4 text-xs text-slate-500">
-            Schema version {LIBREVS_SCHEMA_VERSION} · registry-aligned disclosure
-            fields
+            Option A is the supported module. Comprehensive disclosures are not included yet.
           </p>
         </section>
 

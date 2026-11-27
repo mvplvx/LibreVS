@@ -11,11 +11,8 @@ import {
 /**
  * Persisted VS 2026 reporting option for one reporting period.
  *
- * Future cutover: B1 paragraph 27(a) is still the registry booleans
- * B1_MODULE_SELECTION_OPTION_BASIC_MODULE_ONLY and
- * B1_MODULE_SELECTION_OPTION_BASIC_AND_COMPREHENSIVE. This period
- * configuration is the value those fields must be derived from. This
- * module does not read or write them, and it does not read employee count.
+ * This period configuration is the VS 2026 module selection.
+ * The module does not read employee count and does not read a second reporting standard.
  *
  * Callers that serve an HTTP request must pass the organization id already
  * resolved from the authenticated session. The query matches findReportingPeriodInOrganization:

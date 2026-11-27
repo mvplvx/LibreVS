@@ -5,7 +5,7 @@ import { authClient } from "@/lib/auth-client";
 
 function safeNextPath(value: string | null): string {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.startsWith("/login")) {
-    return "/vsme";
+    return "/dashboard";
   }
   return value;
 }

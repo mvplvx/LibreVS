@@ -14,8 +14,8 @@ export default function SystemHealthPage() {
             <Link href="/dashboard" className="text-slate-700 underline">
               Dashboard
             </Link>
-            <Link href="/vsme" className="text-slate-700 underline">
-              VSME workspace
+            <Link href="/dashboard" className="text-slate-700 underline">
+              Reporting
             </Link>
             <Link href="/system/backup" className="text-slate-700 underline">
               Data safety

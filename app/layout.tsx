@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LibreVS — VSME Reporting",
-  description: "Schema-driven EFRAG VSME sustainability reporting",
+  title: "LibreVS — VS 2026 reporting",
+  description: "Self-hosted VS 2026 sustainability reporting for European SMEs",
 };
 
 export default function RootLayout({

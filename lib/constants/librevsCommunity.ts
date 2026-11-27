@@ -12,9 +12,9 @@ export const LIBREVS_ISSUES_URL = `${LIBREVS_GITHUB_REPO}/issues`;
 export const LIBREVS_CONTACT_EMAIL = "contact@librevs.org";
 
 export const LIBREVS_TAGLINE =
-  "LibreVS is an independent open-source VSME reporting project.";
+  "LibreVS is an independent open-source VS 2026 reporting project.";
 
 export const LIBREVS_PHILOSOPHY =
-  "LibreVS is an independent open-source VSME reporting project focused on transparency, deterministic reporting behavior, and digital sovereignty.";
+  "LibreVS is an independent open-source VS 2026 reporting project focused on transparency, deterministic reporting behavior, and digital sovereignty.";
 
 export const LIBREVS_POWERED_BY = "Powered by LibreVS";

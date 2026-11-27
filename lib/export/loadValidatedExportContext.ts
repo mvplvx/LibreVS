@@ -9,6 +9,7 @@ import {
 } from "@/lib/vsme/exportMapping";
 import { assertSystemReadyForExport } from "@/lib/vsme/release/readinessCheck";
 import { parseReportingCurrency } from "@/lib/vsme/currency";
+import { legacyExportRefusal } from "@/lib/vsme/vs2026/reportingStandard";
 
 export type ValidatedExportContext = {
   reportingPeriodId: string;
@@ -47,6 +48,10 @@ export async function loadValidatedExportContext(
 
   if (!period) {
     return { ok: false, error: "Reporting period not found" };
+  }
+  const exportRefusal = legacyExportRefusal(period.vs2026ReportingOption);
+  if (exportRefusal) {
+    return { ok: false, error: exportRefusal };
   }
 
   const readinessGate = await assertSystemReadyForExport();

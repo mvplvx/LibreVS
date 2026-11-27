@@ -21,6 +21,7 @@ import {
   isSingletonGroup,
   OMISSION_GROUP_ID,
 } from "./repeatingForm";
+import { comparativeBasisFromStored, VS2026_COMPARATIVE_BASIS } from "./reportingStandard";
 import { omissionWorkflowStatus } from "./structuredInput";
 import { repeatingStorageGroupId } from "./repeatingIntegrity";
 import { disclosureDatapoints } from "./registry";
@@ -205,6 +206,8 @@ export async function loadVs2026Editor(input: {
       ...(await repeatingEditorState(input.db, reportingPeriodId)),
       energyBreakdownLabel: energyBreakdownLabel(byField.get("B3_ENERGY_BREAKDOWN_INFORMATION")?.value),
       ...omissionCatalog(),
+      comparativeBasis: comparativeBasisFromStored(byField.get(VS2026_COMPARATIVE_BASIS)?.value),
+      comparativeUpdatedAt: byField.get(VS2026_COMPARATIVE_BASIS)?.updatedAt.toISOString() ?? null,
       previewHref,
     },
   };

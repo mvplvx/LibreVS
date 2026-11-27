@@ -130,6 +130,7 @@ model ReportingPeriod {
   sustainabilityDataPoints SustainabilityDataPoint[]
   fieldMateriality       VsmeFieldMateriality[]
   exportSnapshots        VsmeExportSnapshot[]
+  vs2026ReportSnapshots  Vs2026ReportSnapshot[]
   vs2026RepeatingRows    Vs2026RepeatingRow[]
 
   createdAt DateTime @default(now())
@@ -159,6 +160,47 @@ model VsmeExportSnapshot {
   @@unique([reportingPeriodId, version])
   @@index([reportingPeriodId])
   @@index([companyId])
+}
+
+/**
+ * Immutable VS 2026 Option A report.
+ * Distinct from the legacy VSME export snapshot.
+ * A later edit of the reporting period creates a new revision.
+ */
+model Vs2026ReportSnapshot {
+  id String @id @default(cuid())
+
+  reportingPeriodId String
+  reportingPeriod   ReportingPeriod @relation(fields: [reportingPeriodId], references: [id], onDelete: Cascade)
+
+  organizationId String
+  companyId      String
+
+  revision            Int
+  regulatoryVersion   String
+  reportingOption     String
+  dataset             Json
+  conformityStatement String
+  /**
+   * SHA-256 of the canonical dataset.
+   * Scheme 2 also stores sealHash over the frozen finalisation record.
+   */
+  contentHash         String
+  /**
+   * Null means integrity scheme 1: contentHash covers the dataset only.
+   * "2" means sealHash covers the dataset hash and the frozen finalisation record.
+   * Existing rows are left on scheme 1. They are not rewritten.
+   */
+  integrityVersion  String?
+  sealHash          String?
+  finalisedByUserId String
+  finalisedAt       DateTime
+
+  createdAt DateTime @default(now())
+
+  @@unique([reportingPeriodId, revision])
+  @@index([reportingPeriodId])
+  @@index([organizationId])
 }
 
 /** Per-field materiality assessment (material vs non_material) for a reporting period. */
@@ -194,6 +236,12 @@ model SustainabilityDataPoint {
   migratedFieldId String?
   /** v1→v2 migration outcome; null for native v2 rows. */
   migrationStatus String?
+
+  /**
+   * Set only by the VS 2026 editor.
+   * Null means the value has no verified VS 2026 origin.
+   */
+  reportingOrigin String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

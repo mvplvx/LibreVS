@@ -13,6 +13,7 @@ import {
   classifyEmployeeSize,
   VS2026_EMPLOYEE_PROPORTIONALITY_MEASURE,
 } from "./employeeSize";
+import { VS2026_COMPARATIVE_BASIS } from "./reportingStandard";
 import {
   registryDatapoint,
   repeatingStorageGroupId,
@@ -543,7 +544,10 @@ function mapScalar(
   scalar: PersistedScalarRow,
   excludedFieldIds: string[],
 ): { fact?: FactInput; issue?: PersistedDataIssue } {
-  if (scalar.fieldId === VS2026_EMPLOYEE_PROPORTIONALITY_MEASURE) {
+  if (
+    scalar.fieldId === VS2026_EMPLOYEE_PROPORTIONALITY_MEASURE ||
+    scalar.fieldId === VS2026_COMPARATIVE_BASIS
+  ) {
     excludedFieldIds.push(scalar.fieldId);
     return {};
   }

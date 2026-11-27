@@ -21,6 +21,8 @@ const view: EditorReadyView = {
   energyBreakdownLabel: "Breakdown information has not been assessed. Stored energy values stay visible.",
   omissionTargets: [],
   omissionReasons: [],
+  comparativeBasis: "UNKNOWN",
+  comparativeUpdatedAt: null,
   disclosures: [
     {
       id: "B1",

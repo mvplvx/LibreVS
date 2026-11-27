@@ -11,10 +11,10 @@ class RollbackSignal extends Error {}
 
 describe("reporting configuration database", () => {
   it("persists independent period options and leaves datapoints in place", async () => {
-    const beforePeriods = await prisma.reportingPeriod.count();
-    const beforeDatapoints = await prisma.sustainabilityDataPoint.count();
-    const beforeMateriality = await prisma.vsmeFieldMateriality.count();
-    const beforeCompanies = await prisma.company.count();
+    let periodAId = "";
+    let periodBId = "";
+    let companyId = "";
+    let employeeCount: number | null = null;
 
     try {
       await prisma.$transaction(async (tx) => {
@@ -22,7 +22,8 @@ describe("reporting configuration database", () => {
           where: { organizationId: { not: null } },
         });
         assert.ok(company?.organizationId);
-        const employeeCount = company.employeeCount;
+        employeeCount = company.employeeCount;
+        companyId = company.id;
 
         const maxYear = await tx.reportingPeriod.aggregate({
           where: { companyId: company.id },
@@ -38,6 +39,7 @@ describe("reporting configuration database", () => {
             schemaVersion: "2.0.0",
           },
         });
+        periodAId = periodA.id;
         const periodB = await tx.reportingPeriod.create({
           data: {
             year: year + 1,
@@ -45,6 +47,7 @@ describe("reporting configuration database", () => {
             schemaVersion: "2.0.0",
           },
         });
+        periodBId = periodB.id;
 
         const unconfigured = await getReportingConfiguration(
           { reportingPeriodId: periodA.id, organizationId },
@@ -138,9 +141,16 @@ describe("reporting configuration database", () => {
       }
     }
 
-    assert.equal(await prisma.reportingPeriod.count(), beforePeriods);
-    assert.equal(await prisma.sustainabilityDataPoint.count(), beforeDatapoints);
-    assert.equal(await prisma.vsmeFieldMateriality.count(), beforeMateriality);
-    assert.equal(await prisma.company.count(), beforeCompanies);
+    assert.equal(await prisma.reportingPeriod.count({ where: { id: periodAId } }), 0);
+    assert.equal(await prisma.reportingPeriod.count({ where: { id: periodBId } }), 0);
+    assert.equal(
+      await prisma.sustainabilityDataPoint.count({
+        where: { reportingPeriodId: periodAId, fieldId: "B3_PHASE2C_KEEP" },
+      }),
+      0,
+    );
+    assert.equal(await prisma.vsmeFieldMateriality.count({ where: { reportingPeriodId: periodAId } }), 0);
+    const companyAfter = await prisma.company.findUnique({ where: { id: companyId } });
+    assert.equal(companyAfter?.employeeCount, employeeCount);
   });
 });

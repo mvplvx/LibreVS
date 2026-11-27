@@ -3,13 +3,18 @@
 import { useState, useTransition } from "react";
 
 import {
+  saveComparativeBasisAction,
   saveEmployeeMeasureAction,
   saveOptionAAction,
   saveScalarAction,
 } from "@/lib/vsme/vs2026/editorActions";
+import { FinalisationPanel } from "@/components/vsme/vs2026/FinalisationPanel";
 import { RepeatingGroupEditor } from "@/components/vsme/vs2026/RepeatingGroups";
+import { ReviewPanel } from "@/components/vsme/vs2026/ReviewPanel";
 import { statusLabel, useFieldAutosave } from "@/components/vsme/vs2026/useFieldAutosave";
 import type { EditorControl, EditorFieldView, EditorMutationResult, EditorReadyView } from "@/lib/vsme/vs2026/editorView";
+import type { VS2026ReportPanel } from "@/lib/vsme/vs2026/reportDataset";
+import type { VS2026ReportingState } from "@/lib/vsme/vs2026/reportingState";
 import { ISO_3166_ALPHA2 } from "@/lib/vsme/vs2026/iso3166Alpha2";
 
 const inputClass = "mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900";
@@ -18,9 +23,13 @@ const buttonClass = "rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:
 export function Vs2026Editor({
   view,
   refresh,
+  reportingState = null,
+  reportPanel = null,
 }: {
   view: EditorReadyView;
   refresh: () => void;
+  reportingState?: VS2026ReportingState | null;
+  reportPanel?: VS2026ReportPanel | null;
 }) {
   const factsOpen = view.configurationStatus === "OPTION_A";
   return (
@@ -28,9 +37,9 @@ export function Vs2026Editor({
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-slate-900">VS 2026 Basic Module</h1>
         <p className="mt-3 text-sm text-slate-700">
-          This editor stores reported values. It is not a legal compliance assessment, and it does
-          not evaluate completion. Open a reporting period created in the workspace. This page does
-          not convert an existing VSME report.
+          This editor stores reported values. It is not a legal compliance assessment. Saving Option A
+          designates this period for VS 2026. Until that save, the period stays on the legacy
+          workspace. After that save, the legacy form and legacy exports cannot change or publish it.
         </p>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <Item term="Reporting period" value={periodLabel(view)} />
@@ -57,8 +66,24 @@ export function Vs2026Editor({
 
       <OptionSection view={view} refresh={refresh} />
       <EmployeeSection view={view} refresh={refresh} enabled={factsOpen} />
+      <ComparativeSection view={view} refresh={refresh} enabled={factsOpen} />
+      {reportingState?.ok ? <ReviewPanel state={reportingState} /> : null}
+      {reportingState?.ok && reportPanel && view.configurationStatus === "OPTION_A" ? (
+        <FinalisationPanel
+          reportingPeriodId={view.reportingPeriodId}
+          state={reportingState}
+          panel={reportPanel}
+          refresh={refresh}
+        />
+      ) : null}
 
       <nav className="flex flex-wrap gap-2 text-sm" aria-label="Basic Module">
+        <a className="rounded border border-slate-300 bg-white px-2 py-1" href="#vs2026-review">
+          Review
+        </a>
+        <a className="rounded border border-slate-300 bg-white px-2 py-1" href="#vs2026-finalisation">
+          Report
+        </a>
         {view.disclosures.map((disclosure) => (
           <a key={disclosure.id} className="rounded border border-slate-300 bg-white px-2 py-1" href={`#vs2026-${disclosure.id}`}>
             {disclosure.id}
@@ -162,6 +187,95 @@ function OptionSection({ view, refresh }: { view: EditorReadyView; refresh: () =
       >
         {pending ? "Saving…" : "Save Option A"}
       </button>
+      {message ? <p className="mt-3 text-sm text-slate-700">{message}</p> : null}
+    </section>
+  );
+}
+
+function ComparativeSection({
+  view,
+  refresh,
+  enabled,
+}: {
+  view: EditorReadyView;
+  refresh: () => void;
+  enabled: boolean;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [value, setValue] = useState(view.comparativeBasis === "UNKNOWN" ? "" : view.comparativeBasis);
+  const [confirmed, setConfirmed] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  function save(next: "FIRST_YEAR" | "SUBSEQUENT" | null) {
+    setMessage(null);
+    startTransition(async () => {
+      const result = await saveComparativeBasisAction(view.reportingPeriodId, next, confirmed);
+      setMessage(
+        resultMessage(
+          result,
+          next === null ? "The reporting-year basis was cleared." : "The reporting-year basis was saved.",
+        ),
+      );
+      if (result.ok) {
+        setConfirmed(false);
+        refresh();
+      }
+    });
+  }
+  return (
+    <section id="vs2026-comparative" className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-semibold text-slate-900">First-year or subsequent reporting</h2>
+      <p className="mt-2 text-sm text-slate-700">
+        Comparative information is required from the second year of reporting, with an exception for
+        metrics disclosed for the first time. A new period in this database is not treated as a first
+        year. This statement is not stored until you confirm it. It does not copy earlier values, and
+        it does not create a reference to an unchanged datapoint in an earlier report.
+      </p>
+      <label className="mt-4 block text-sm font-medium text-slate-900" htmlFor="vs2026-comparative-basis">
+        Reporting-year basis
+      </label>
+      <select
+        id="vs2026-comparative-basis"
+        className={inputClass}
+        value={value}
+        disabled={!enabled || pending}
+        onChange={(event) => setValue(event.target.value)}
+      >
+        <option value="">Not stated</option>
+        <option value="FIRST_YEAR">First year of reporting under this standard</option>
+        <option value="SUBSEQUENT">Subsequent reporting year</option>
+      </select>
+      <label className="mt-3 flex items-start gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={confirmed}
+          disabled={!enabled || pending}
+          onChange={(event) => setConfirmed(event.target.checked)}
+        />
+        I confirm this basis for the selected period. The confirmation is not stored as audit evidence.
+      </label>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          className={buttonClass}
+          type="button"
+          disabled={!enabled || pending || value === "" || !confirmed}
+          onClick={() => {
+            if (value === "FIRST_YEAR" || value === "SUBSEQUENT") {
+              save(value);
+            }
+          }}
+        >
+          {pending ? "Saving…" : "Save reporting-year basis"}
+        </button>
+        <button
+          className="rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 disabled:opacity-50"
+          type="button"
+          disabled={!enabled || pending || !confirmed}
+          onClick={() => save(null)}
+        >
+          Clear
+        </button>
+      </div>
       {message ? <p className="mt-3 text-sm text-slate-700">{message}</p> : null}
     </section>
   );

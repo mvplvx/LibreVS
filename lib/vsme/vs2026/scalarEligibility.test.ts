@@ -113,6 +113,7 @@ describe("VS 2026 editor boundary", () => {
       new URL("./repeatingForm.ts", import.meta.url),
       new URL("../../../components/vsme/vs2026/RepeatingGroups.tsx", import.meta.url),
       new URL("./editorAvailability.ts", import.meta.url),
+      new URL("./reportingState.ts", import.meta.url),
       new URL("../../../app/vsme/vs2026/edit/[reportingPeriodId]/page.tsx", import.meta.url),
       new URL("../../../components/vsme/vs2026/Vs2026Editor.tsx", import.meta.url),
     ];

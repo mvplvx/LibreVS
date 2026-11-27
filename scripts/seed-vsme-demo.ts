@@ -1,27 +1,16 @@
 /**
- * Minimal VSME demo seed — one company, one reporting period, optional sample v2 data.
- * Used by prisma/seed.ts for local onboarding.
+ * Demo company and an unconfigured reporting period.
+ * Sample legacy datapoints are not written. Existing rows are left in place.
  */
 import type { PrismaClient } from "@prisma/client";
-import { VSME_FIELD_IDS } from "../lib/vsme/vsme.fieldRegistry";
 import { VSME_SCHEMA_VERSION } from "../lib/vsme/schemaVersion";
 
 export const DEMO_ORGANIZATION_ID = "librevs-demo-org";
 export const DEMO_COMPANY_ID = "librevs-demo-company";
 export const DEMO_PERIOD_ID = "librevs-demo-period-2025";
 
-const SAMPLE_VALUES: Record<string, { value: string; unit?: string }> = {
-  B1_MODULE_SELECTION_OPTION_BASIC_MODULE_ONLY: { value: "true" },
-  B1_REPORTING_SCOPE_REPORTING_INDIVIDUAL: { value: "true" },
-  B3_ELECTRICITY_ELECTRICITY_TOTAL_MWH: { value: "840", unit: "MWh" },
-  B8_GENDER_EMPLOYEES_MALE: { value: "48" },
-};
-
-const MATERIAL_FIELD_IDS = Object.keys(SAMPLE_VALUES);
-
 export type SeedVsmeDemoOptions = {
   organizationId?: string;
-  includeSampleData?: boolean;
 };
 
 export async function seedVsmeDemo(
@@ -32,7 +21,6 @@ export async function seedVsmeDemo(
   reportingPeriodId: string;
 }> {
   const organizationId = options.organizationId ?? DEMO_ORGANIZATION_ID;
-  const includeSampleData = options.includeSampleData !== false;
 
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
@@ -77,73 +65,10 @@ export async function seedVsmeDemo(
     },
   });
 
-  if (includeSampleData) {
-    for (const fieldId of MATERIAL_FIELD_IDS) {
-      const sample = SAMPLE_VALUES[fieldId];
-      if (!sample) {
-        continue;
-      }
-      await prisma.sustainabilityDataPoint.upsert({
-        where: {
-          reportingPeriodId_fieldId: {
-            reportingPeriodId: period.id,
-            fieldId,
-          },
-        },
-        update: { value: sample.value, unit: sample.unit ?? null },
-        create: {
-          reportingPeriodId: period.id,
-          fieldId,
-          value: sample.value,
-          unit: sample.unit ?? null,
-        },
-      });
-      await prisma.vsmeFieldMateriality.upsert({
-        where: {
-          reportingPeriodId_fieldId: {
-            reportingPeriodId: period.id,
-            fieldId,
-          },
-        },
-        update: { materiality: "material" },
-        create: {
-          reportingPeriodId: period.id,
-          fieldId,
-          materiality: "material",
-        },
-      });
-    }
-
-    const extra = VSME_FIELD_IDS.filter(
-      (id) => !MATERIAL_FIELD_IDS.includes(id)
-    ).slice(0, 2);
-    for (const fieldId of extra) {
-      await prisma.sustainabilityDataPoint.upsert({
-        where: {
-          reportingPeriodId_fieldId: {
-            reportingPeriodId: period.id,
-            fieldId,
-          },
-        },
-        update: { value: "1", unit: null },
-        create: {
-          reportingPeriodId: period.id,
-          fieldId,
-          value: "1",
-          unit: null,
-        },
-      });
-    }
-  }
-
-  console.log("VSME demo seed:");
+  console.log("VS 2026 demo seed:");
   console.log(`  company: ${company.name} (${company.id})`);
   console.log(`  period: ${period.year} (${period.id})`);
-  console.log(
-    includeSampleData
-      ? `  sample v2 datapoints: ${MATERIAL_FIELD_IDS.length}+`
-      : "  sample datapoints: skipped"
-  );
+  console.log("  reporting option: left unconfigured; existing rows were not rewritten");
 
   return {
     companyId: company.id,
