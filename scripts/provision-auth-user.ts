@@ -39,21 +39,29 @@ async function main(): Promise<void> {
   }
 
   const body = parsed as Record<string, unknown>;
-  if (
-    typeof body.email !== "string" ||
-    typeof body.password !== "string" ||
-    typeof body.organizationId !== "string"
-  ) {
-    console.error("email, password, and organizationId are required");
+  if (typeof body.email !== "string" || typeof body.password !== "string") {
+    console.error("email and password are required");
     process.exit(1);
   }
 
   try {
+    let organizationId = typeof body.organizationId === "string" ? body.organizationId.trim() : "";
+    if (organizationId === "") {
+      if (typeof body.organizationName !== "string" || body.organizationName.trim() === "") {
+        throw new Error("organizationId or organizationName is required");
+      }
+      const organisation = await prisma.organization.create({
+        data: { name: body.organizationName.trim() },
+      });
+      organizationId = organisation.id;
+      console.log(`Created organisation ${organisation.id}`);
+    }
+
     if (body.resetPassword === true) {
       const reset = await resetCredentialPassword({
         email: body.email,
         password: body.password,
-        organizationId: body.organizationId,
+        organizationId,
       });
       console.log(`Reset the password and revoked sessions for ${reset.userId}`);
     } else {
@@ -65,7 +73,7 @@ async function main(): Promise<void> {
         email: body.email,
         password: body.password,
         name: body.name,
-        organizationId: body.organizationId,
+        organizationId,
       });
       console.log(`Provisioned account ${created.userId} for ${body.email.trim().toLowerCase()}`);
     }

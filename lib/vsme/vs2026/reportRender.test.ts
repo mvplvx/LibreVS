@@ -288,7 +288,34 @@ function cellText(value: ExcelJS.CellValue): string {
 
 function extractPdfText(bytes: Uint8Array): string {
   const buffer = Buffer.from(bytes);
+  const source = buffer.toString("latin1");
+  const maps = new Map<string, Map<string, string>>();
+  for (const match of source.matchAll(/\/BaseFont\s*\/(NotoSans-[A-Za-z]+)[\s\S]{0,400}?\/ToUnicode\s+(\d+)\s+0\s+R/g)) {
+    maps.set(match[1], toUnicodeMap(objectStream(buffer, match[2])));
+  }
   const parts: string[] = [];
+  for (const stream of pdfStreams(buffer)) {
+    if (!stream.includes(" Tj") && !stream.includes(" TJ")) {
+      continue;
+    }
+    parts.push(decodeContent(stream, maps));
+  }
+  return parts.join("\n");
+}
+
+function objectStream(buffer: Buffer, objectId: string): string {
+  const marker = `${objectId} 0 obj`;
+  const start = buffer.indexOf(marker);
+  if (start < 0) {
+    return "";
+  }
+  const next = buffer.indexOf("endobj", start);
+  return pdfStreams(buffer.subarray(start, next < 0 ? buffer.length : next)).join("\n");
+}
+
+function pdfStreams(bytes: Uint8Array): string[] {
+  const buffer = Buffer.from(bytes);
+  const streams: string[] = [];
   let index = 0;
   while (index < buffer.length) {
     const start = buffer.indexOf("stream", index);
@@ -313,30 +340,94 @@ function extractPdfText(bytes: Uint8Array): string {
     if (slice[slice.length - 1] === 0x0d) {
       slice = slice.subarray(0, slice.length - 1);
     }
-    let decoded = slice;
     try {
-      decoded = inflateSync(slice);
+      slice = inflateSync(slice);
     } catch {
-      decoded = slice;
+      // The stream is already uncompressed.
     }
-    parts.push(decodePdfLiterals(decoded.toString("latin1")));
+    streams.push(slice.toString("latin1"));
     index = end + "endstream".length;
   }
-  return parts.join("\n");
+  return streams;
 }
 
-function decodePdfLiterals(content: string): string {
+function toUnicodeMap(stream: string): Map<string, string> {
+  const map = new Map<string, string>();
+  collectToUnicode(stream, map);
+  return map;
+}
+
+function collectToUnicode(stream: string, map: Map<string, string>): void {
+  for (const block of stream.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
+    for (const pair of block[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g)) {
+      map.set(glyphKey(pair[1]), utf16Hex(pair[2]));
+    }
+  }
+  for (const block of stream.matchAll(/beginbfrange([\s\S]*?)endbfrange/g)) {
+    for (const range of block[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*\[([\s\S]*?)\]/g)) {
+      const start = Number.parseInt(range[1], 16);
+      const values = [...range[3].matchAll(/<([0-9A-Fa-f]+)>/g)].map((item) => utf16Hex(item[1]));
+      values.forEach((value, offset) => {
+        map.set(glyphKey((start + offset).toString(16)), value);
+      });
+    }
+    for (const range of block[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g)) {
+      const start = Number.parseInt(range[1], 16);
+      const end = Number.parseInt(range[2], 16);
+      const dest = Number.parseInt(range[3], 16);
+      for (let code = start; code <= end; code += 1) {
+        map.set(glyphKey(code.toString(16)), String.fromCharCode(dest + (code - start)));
+      }
+    }
+  }
+}
+
+function glyphKey(hex: string): string {
+  return hex.toUpperCase().padStart(4, "0");
+}
+
+function utf16Hex(hex: string): string {
+  const units: number[] = [];
+  for (let index = 0; index < hex.length; index += 4) {
+    units.push(Number.parseInt(hex.slice(index, index + 4).padEnd(4, "0"), 16));
+  }
+  return String.fromCharCode(...units);
+}
+
+function decodeGlyphHex(hex: string, map: Map<string, string>): { text: string; count: number } {
+  let text = "";
+  let count = 0;
+  for (let index = 0; index < hex.length; index += 4) {
+    const char = map.get(glyphKey(hex.slice(index, index + 4))) ?? "";
+    if (char !== "") {
+      count += 1;
+    }
+    text += char;
+  }
+  return { text, count };
+}
+
+function decodeContent(content: string, maps: Map<string, Map<string, string>>): string {
   const values: string[] = [];
-  const pattern = /\((?:\\.|[^\\)])*\)|<([0-9A-Fa-f\s]+)>/g;
-  for (const match of content.matchAll(pattern)) {
-    if (match[1]) {
-      const hex = match[1].replace(/\s+/g, "");
+  let font = "NotoSans-Regular";
+  for (const token of content.matchAll(/\/(NotoSans-[A-Za-z]+)[^\s]*\s+[0-9.]+\s+Tf|\((?:\\.|[^\\)])*\)|<([0-9A-Fa-f\s]+)>/g)) {
+    if (token[0].includes(" Tf")) {
+      font = token[1] ?? font;
+      continue;
+    }
+    if (token[2]) {
+      const hex = token[2].replace(/\s+/g, "");
+      const map = maps.get(font);
+      if (map && hex.length >= 4 && hex.length % 4 === 0) {
+        values.push(decodeGlyphHex(hex, map).text);
+        continue;
+      }
       if (hex.length % 2 === 0 && hex.length > 0) {
         values.push(Buffer.from(hex, "hex").toString("latin1"));
       }
       continue;
     }
-    values.push(unescapePdf(match[0].slice(1, -1)));
+    values.push(unescapePdf(token[0].slice(1, -1)));
   }
   return values.join("");
 }
@@ -496,6 +587,38 @@ describe("VS 2026 multi-format report rendering", () => {
       facts.push(reported({ datapointId: "B4_POLLUTANT_IDENTITY", reportedValue: `Extra ${index}`, rowId: `extra-${index}` }));
     }
     assert.throws(() => projectPublicReport(report), ReportRenderLimitError);
+  });
+
+  it("renders tested European characters as glyphs", async () => {
+    const samples = [
+      "ÅÄÖåäö",
+      "ÆØÅæøå",
+      "ÄÖÜß",
+      "Łłęś",
+      "ČčŠšŽž",
+      "Ελληνικά",
+      "Українська",
+      "“quoted”",
+      "range–em—",
+      "100%",
+      "€",
+    ];
+    const report = dataset();
+    report.undertaking.name = `Example ${samples.join(" ")}`;
+    const legalForm = report.disclosures
+      .find((disclosure) => disclosure.id === "B1")
+      ?.facts.find((fact) => fact.datapointId === "B1_LEGAL_FORM");
+    if (legalForm) {
+      legalForm.reportedValue = samples.join("\n");
+    }
+    const { verified } = snapshotFor(report);
+    const pdf = await renderVS2026Pdf(verified);
+    const text = extractPdfText(pdf);
+    for (const sample of samples) {
+      assert.equal(text.includes(sample), true, sample);
+      const point = sample.codePointAt(0) ?? 0;
+      assert.equal(text.includes(`U+${point.toString(16).toUpperCase().padStart(4, "0")}`), false, sample);
+    }
   });
 
   it("does not query the database or the regulatory evaluator from a renderer", () => {

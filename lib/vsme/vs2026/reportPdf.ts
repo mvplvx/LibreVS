@@ -1,4 +1,8 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+import fontkit from "@pdf-lib/fontkit";
+import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 
 import type { VerifiedReportSnapshot } from "./reportSeal";
 import {
@@ -16,11 +20,16 @@ const MUTED = rgb(0.33, 0.37, 0.42);
 const RULE = rgb(0.8, 0.83, 0.86);
 const BAND = rgb(0.94, 0.95, 0.96);
 
+function bundledFont(fileName: string): Uint8Array {
+  return new Uint8Array(readFileSync(path.join(process.cwd(), "assets", "fonts", fileName)));
+}
+
 export async function renderVS2026Pdf(snapshot: VerifiedReportSnapshot): Promise<Uint8Array> {
   const report = projectPublicReport(snapshot.dataset);
   const pdf = await PDFDocument.create();
-  const regular = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  pdf.registerFontkit(fontkit);
+  const regular = await pdf.embedFont(bundledFont("NotoSans-Regular.ttf"), { subset: true });
+  const bold = await pdf.embedFont(bundledFont("NotoSans-Bold.ttf"), { subset: true });
   const year = snapshot.dataset.metadata.year === null ? "the reporting period" : String(snapshot.dataset.metadata.year);
   const title = `${snapshot.dataset.undertaking.name} sustainability report ${year}`;
   pdf.setTitle(title);
@@ -70,7 +79,7 @@ export async function renderVS2026Pdf(snapshot: VerifiedReportSnapshot): Promise
   layout.paragraph(`Revision ${snapshot.revision}. Finalised at ${snapshot.finalisedAt}. Regulatory version ${snapshot.regulatoryVersion}.`);
   layout.paragraph("LibreVS prepared this file from the undertaking's finalised report. LibreVS is not the reporting undertaking and does not provide external assurance.");
   layout.finish();
-  return pdf.save();
+  return pdf.save({ useObjectStreams: false });
 }
 
 class Layout {
@@ -269,6 +278,11 @@ function splitWord(font: PDFFont, word: string, size: number, width: number): st
   return pieces;
 }
 
+/**
+ * Noto Sans covers the tested Latin, Greek, and Cyrillic characters.
+ * A character outside that font is shown as its code point so the report still generates.
+ * That fallback is not a claim of coverage for other scripts.
+ */
 function safe(font: PDFFont, text: string): string {
   let output = "";
   for (const char of text) {

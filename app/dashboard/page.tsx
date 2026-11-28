@@ -9,9 +9,9 @@ import { PilotModeBanner } from "@/components/vsme/PilotModeBanner";
 import { useCreateReportingPeriod, useVsmeWorkspace } from "@/components/vsme/queries";
 import { VsmeWorkspaceSelectors } from "@/components/vsme/VsmeWorkspaceSelectors";
 import { saveOptionAAction } from "@/lib/vsme/vs2026/editorActions";
-import { apiGet } from "@/lib/api/client";
+import { apiGet, apiPost } from "@/lib/api/client";
 import { queryClient } from "@/lib/query/queryClient";
-import { parseReportingCurrency } from "@/lib/vsme/currency";
+import { EU_REPORTING_CURRENCIES, parseReportingCurrency, type EuReportingCurrency } from "@/lib/vsme/currency";
 import { vsmeKeys } from "@/lib/vsme/vsmeQueryKeys";
 import type { Vs2026PeriodSummary } from "@/lib/vsme/vs2026/periodSummary";
 
@@ -41,6 +41,10 @@ export default function DashboardPage() {
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [optionMessage, setOptionMessage] = useState<string | null>(null);
   const [optionPending, setOptionPending] = useState(false);
+  const [undertakingName, setUndertakingName] = useState("");
+  const [undertakingCurrency, setUndertakingCurrency] = useState<EuReportingCurrency>("EUR");
+  const [undertakingError, setUndertakingError] = useState<string | null>(null);
+  const [undertakingPending, setUndertakingPending] = useState(false);
   const reportingCurrency = parseReportingCurrency(company?.currency);
 
   useEffect(() => {
@@ -70,6 +74,30 @@ export default function DashboardPage() {
   }, [periodId]);
   const visibleSummary = periodId && summaryPeriodId === periodId ? summary : null;
   const visibleSummaryError = periodId && summaryPeriodId === periodId ? summaryError : null;
+
+  async function createUndertaking(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = undertakingName.trim();
+    if (name === "") {
+      setUndertakingError("Enter the undertaking name.");
+      return;
+    }
+    setUndertakingPending(true);
+    setUndertakingError(null);
+    try {
+      const created = await apiPost<{ id: string }>("/api/company", {
+        name,
+        currency: undertakingCurrency,
+      });
+      await queryClient.invalidateQueries({ queryKey: vsmeKeys.companies() });
+      setCompanyId(created.id);
+      setUndertakingName("");
+    } catch (error: unknown) {
+      setUndertakingError(error instanceof Error ? error.message : "The undertaking was not created.");
+    } finally {
+      setUndertakingPending(false);
+    }
+  }
 
   async function createReportingPeriod(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -112,7 +140,9 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-2xl font-semibold">LibreVS reporting</h1>
             <p className="mt-1 text-sm text-slate-600">
-              VS 2026 Basic Module for the selected undertaking and reporting period.
+              VS 2026 Option A, Basic Module, for the selected undertaking and reporting period.
+              Comprehensive disclosures, subsequent-year comparisons, and XBRL are not available.
+              The undertaking is responsible for its declaration. LibreVS does not provide external assurance.
             </p>
           </div>
           <SystemHealthIndicator />
@@ -158,6 +188,40 @@ export default function DashboardPage() {
               ) : null}
             </form>
             <DataOwnershipNotice compact />
+            {!isLoading && !company ? (
+              <form className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" onSubmit={createUndertaking}>
+                <h2 className="text-sm font-semibold text-slate-900">New undertaking</h2>
+                <p className="mt-1 text-xs text-slate-600">Create the company this reporting period belongs to.</p>
+                <label className="mt-3 block text-sm text-slate-800">
+                  Undertaking name
+                  <input
+                    className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
+                    value={undertakingName}
+                    onChange={(event) => setUndertakingName(event.target.value)}
+                  />
+                </label>
+                <label className="mt-3 block text-sm text-slate-800">
+                  Reporting currency
+                  <select
+                    className="mt-1 w-full rounded border border-slate-300 px-3 py-2"
+                    value={undertakingCurrency}
+                    onChange={(event) => setUndertakingCurrency(parseReportingCurrency(event.target.value))}
+                  >
+                    {EU_REPORTING_CURRENCIES.map((code) => (
+                      <option key={code} value={code}>{code}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="mt-3 rounded bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-50"
+                  type="submit"
+                  disabled={undertakingPending}
+                >
+                  {undertakingPending ? "Creating…" : "Create undertaking"}
+                </button>
+                {undertakingError ? <p className="mt-2 text-sm text-red-700">{undertakingError}</p> : null}
+              </form>
+            ) : null}
           </aside>
           <div className="col-span-12 space-y-6 lg:col-span-9">
             {isLoading ? <p className="text-sm text-slate-500">Loading…</p> : null}
@@ -198,6 +262,10 @@ export default function DashboardPage() {
                 {visibleSummary.snapshots.length > 0 ? (
                   <div className="mt-6">
                     <h3 className="text-sm font-semibold text-slate-900">Finalised revisions</h3>
+                    <p className="mt-1 text-xs text-slate-600">
+                      PDF and Excel are the publication report. JSON is the full technical export and can include
+                      preparation context that those reports omit.
+                    </p>
                     <ul className="mt-2 space-y-2 text-sm">
                       {visibleSummary.snapshots.map((snapshot) => (
                         <li key={snapshot.id}>
@@ -211,7 +279,7 @@ export default function DashboardPage() {
                               Download Excel report
                             </a>
                             <a className="underline" href={`/api/vsme/vs2026/report/snapshot/${snapshot.id}?format=json`}>
-                              Download JSON data
+                              Download full technical data (JSON)
                             </a>
                           </span>
                         </li>

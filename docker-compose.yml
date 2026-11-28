@@ -1,42 +1,53 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: librevs-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: librevs
-      POSTGRES_PASSWORD: librevs
-      POSTGRES_DB: librevs
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-librevs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-librevs}
     volumes:
       - librevs_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U librevs -d librevs"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-librevs} -d ${POSTGRES_DB:-librevs}"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 12
+    # PostgreSQL stays on the Docker network. Do not publish 5432.
 
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: librevs-app
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "${LIBREVS_HTTP_PORT:-3000}:3000"
     environment:
-      DATABASE_URL: postgresql://librevs:librevs@db:5432/librevs?schema=public
-      LIBREVS_LOG: "1"
-      LIBREVS_SEED_TEST_ENV: "1"
-      LIBREVS_PILOT_MODE: "1"
-      NEXT_PUBLIC_LIBREVS_PILOT_MODE: "true"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-librevs}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-librevs}?schema=public
+      LIBREVS_LOG: ${LIBREVS_LOG:-0}
+      LIBREVS_PILOT_MODE: ${LIBREVS_PILOT_MODE:-1}
+      NEXT_PUBLIC_LIBREVS_PILOT_MODE: ${NEXT_PUBLIC_LIBREVS_PILOT_MODE:-true}
       NODE_ENV: production
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?Set BETTER_AUTH_URL to the public https origin}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET to a random string of at least 32 characters}
+      LIBREVS_TRUSTED_PROXIES: ${LIBREVS_TRUSTED_PROXIES:-}
+      VS2026_EDITOR_ENABLED: ${VS2026_EDITOR_ENABLED:-true}
+      VS2026_PREVIEW_ENABLED: ${VS2026_PREVIEW_ENABLED:-false}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/system-health').then(async (response) => { const body = await response.json(); process.exit(response.ok && body.data && body.data.databaseReachable ? 0 : 1); }).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
 
 volumes:
   librevs_pgdata:

@@ -117,7 +117,8 @@ export function FinalisationPanel({
         <div className="mt-4">
           <h3 className="text-sm font-semibold text-slate-900">Final report versions</h3>
           <p className="mt-2 text-sm text-slate-700">
-            Each revision can be downloaded as PDF, Excel, or JSON. Downloading does not create a new revision.
+            PDF and Excel are the publication report. JSON is the full technical export and can include preparation
+            context that those reports omit. Downloading does not create a new revision.
             This report is Option A for an explicitly declared first year. Comprehensive disclosures are not included.
             The information is the undertaking&apos;s. LibreVS does not provide external assurance.
           </p>
@@ -136,7 +137,7 @@ export function FinalisationPanel({
                     Download Excel report
                   </a>
                   <a className="underline" href={`/api/vsme/vs2026/report/snapshot/${snapshot.id}?format=json`}>
-                    Download JSON data
+                    Download full technical data (JSON)
                   </a>
                 </p>
               </li>
