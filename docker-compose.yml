@@ -16,6 +16,7 @@ services:
     # PostgreSQL stays on the Docker network. Do not publish 5432.
 
   app:
+    image: librevs:vs09
     build:
       context: .
       dockerfile: Dockerfile

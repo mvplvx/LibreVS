@@ -1,12 +1,52 @@
 # Install LibreVS
 
-Professional installation guide for self-hosted VSME reporting (Community Edition / RC1).
+Self-hosted VS 2026 Option A reporting for a small organisation. The verified installation is Docker Compose with PostgreSQL. Deployment Manager is not required for this pilot.
 
-## What you are installing
+LibreVS stores sustainability data in your PostgreSQL database. It does not send report contents to an external service. The supported scope is a first-year VS 2026 Option A report. Comprehensive disclosures C1–C9, subsequent-year comparisons, and XBRL are not available.
 
-LibreVS is **local-first reporting infrastructure**. All sustainability data lives in **your** PostgreSQL database. There is no LibreVS cloud account and no telemetry.
+## Pilot installation
 
-After the first installation, **LibreVS Deployment Manager** is the official way to start and manage LibreVS day to day. Ordinary users should not need PowerShell or Docker commands for normal operation.
+Requirements: a Linux host with Docker Engine and Docker Compose, several gigabytes of free disk beyond the final image, and an HTTPS reverse proxy in front of the application. This verification used Node.js 22 inside `node:22-bookworm-slim`. Do not publish the PostgreSQL port.
+
+Generate secrets in the shell. Do not commit them.
+
+```bash
+export POSTGRES_PASSWORD="$(openssl rand -base64 24)"
+export BETTER_AUTH_SECRET="$(openssl rand -base64 32)"
+export BETTER_AUTH_URL="https://reports.example.test"
+export LIBREVS_HTTP_PORT=3000
+export VS2026_EDITOR_ENABLED=true
+```
+
+`BETTER_AUTH_URL` must be the public HTTPS origin. Leave `LIBREVS_TRUSTED_PROXIES` empty unless that proxy replaces `X-Forwarded-For`. The application rejects an empty secret, a secret shorter than 32 characters, and the build placeholder.
+
+```bash
+docker build -t librevs:vs09 .
+docker compose -p librevs up -d --no-build
+```
+
+The application container applies Prisma migrations and then starts. It does not seed demo companies. Create the first account from a JSON file that is not committed and is not passed on the command line:
+
+```bash
+docker cp ./auth-provision.local.json librevs-app-1:/tmp/provision.json
+docker exec -u librevs -w /app librevs-app-1 node /app/provision-auth-user.cjs /tmp/provision.json
+docker exec -u root librevs-app-1 rm -f /tmp/provision.json
+```
+
+The file needs `email`, `password` (at least 12 characters), `name`, and `organizationName`. Public registration stays closed. After signing in, create the undertaking on the dashboard.
+
+Backup and restore use PostgreSQL custom format. Store the dump outside the web root and restrict it to the administrator.
+
+```bash
+COMPOSE_PROJECT_NAME=librevs ./scripts/backup-database.sh /var/backups/librevs/librevs.dump
+./scripts/restore-database.sh /var/backups/librevs/librevs.dump librevs-restore
+```
+
+The restore script refuses the development container name `librevs-db`. Do not restore over the database you are using.
+
+Put a reverse proxy on the public origin. Forward the original `Host` and set `X-Forwarded-Proto: https` only at that proxy. Production session cookies are `Secure`. An HTTP origin that does not match `BETTER_AUTH_URL` cannot complete sign-in.
+
+The sections below describe Deployment Manager. That interface was not part of the VS 2026 pilot verification.
 
 ## Concepts
 
